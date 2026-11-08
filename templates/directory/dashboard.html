@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}My profile · AutismCare{% endblock %}
+{% block content %}
+<h1>My profile</h1>
+
+<section class="card">
+  <h2>Licence verification</h2>
+  {% if not license %}
+    <p class="badge badge-warning">Not submitted. Your profile won't appear in search until your licence is verified.</p>
+    <a class="btn" href="{% url 'license-upload' %}">Upload licence</a>
+  {% elif license.status == 'APPROVED' %}
+    <p class="badge badge-success">Verified. Your profile is visible to families.</p>
+    <p class="help">Licence number {{ license.license_number }} · reviewed {{ license.reviewed_at|date:"j M Y" }}</p>
+  {% elif license.status == 'PENDING' %}
+    <p class="badge badge-warning">Waiting for review. An administrator will check your licence.</p>
+    <a class="btn btn-secondary" href="{% url 'license-upload' %}">Replace licence document</a>
+  {% else %}
+    <p class="badge badge-error">Not approved.{% if license.reviewer_note %} Reason: {{ license.reviewer_note }}{% endif %}</p>
+    <a class="btn" href="{% url 'license-upload' %}">Upload a new licence</a>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>Clinics where I practise</h2>
+  {% if clinics %}
+    <ul class="list">
+      {% for c in clinics %}
+      <li class="list-item">
+        <div>
+          <strong>{{ c.name }}</strong><br>
+          <span class="help">{{ c.address }} · {{ c.operating_hours }}</span><br>
+          <span class="help">Insurance: {% for i in c.insurance_providers.all %}{{ i.name }}{% if not forloop.last %}, {% endif %}{% empty %}none listed{% endfor %}</span>
+        </div>
+        <div class="row">
+          <a class="btn btn-quiet" href="{% url 'clinic-edit' c.pk %}">Edit</a>
+          <form method="post" action="{% url 'clinic-remove' c.pk %}">{% csrf_token %}<button class="btn btn-quiet" type="submit">Remove</button></form>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="muted">No clinics yet. Families search by location, so add at least one.</p>
+  {% endif %}
+  <a class="btn btn-secondary" href="{% url 'clinic-add' %}">Add a clinic</a>
+</section>
+
+<section class="card">
+  <h2>Profile details</h2>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% include "includes/form.html" %}
+    <button class="btn" type="submit">Save profile</button>
+  </form>
+</section>
+{% endblock %}

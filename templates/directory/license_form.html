@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Licence verification · AutismCare{% endblock %}
+{% block content %}
+<section class="card narrow">
+  <h1>Licence verification</h1>
+  <p>Upload a copy of your current professional licence. Only AutismCare administrators can see this document.</p>
+  {% if license %}<p class="badge badge-warning">Uploading a new document sends your profile back for review.</p>{% endif %}
+  <form method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    {% include "includes/form.html" %}
+    <div class="row">
+      <button class="btn" type="submit">Submit for review</button>
+      <a class="btn btn-quiet" href="{% url 'dashboard' %}">Cancel</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

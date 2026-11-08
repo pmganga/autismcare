@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}{{ therapist.full_name }} · AutismCare{% endblock %}
+{% block content %}
+<p><a href="{% url 'find' %}">← Back to search</a></p>
+<section class="card">
+  <h1>{{ therapist.full_name }}</h1>
+  <p class="badge badge-success">Licence verified</p>
+  {% if therapist.bio %}<p>{{ therapist.bio }}</p>{% endif %}
+  <dl class="details">
+    <dt>Specializations</dt>
+    <dd>{% for s in therapist.specializations.all %}<span class="tag">{{ s.name }}</span>{% empty %}Not listed{% endfor %}</dd>
+    <dt>Consultation</dt>
+    <dd>{{ therapist.consultation_modes|join:", " }}</dd>
+    <dt>Payment methods</dt>
+    <dd>{{ therapist.payment_methods|default:"Not listed" }}</dd>
+    <dt>Phone</dt>
+    <dd><a class="btn btn-secondary" href="tel:{{ therapist.phone }}">Call {{ therapist.phone }}</a></dd>
+  </dl>
+</section>
+<section class="card">
+  <h2>Clinics</h2>
+  <ul class="list">
+    {% for c in therapist.clinics.all %}
+      <li class="list-item">
+        <div>
+          <strong>{{ c.name }}</strong><br>
+          <span class="help">{{ c.address }} · {{ c.operating_hours }}</span><br>
+          <span class="help">Insurance: {% for i in c.insurance_providers.all %}{{ i.name }}{% if not forloop.last %}, {% endif %}{% empty %}none listed{% endfor %}</span>
+        </div>
+        <a class="btn btn-quiet" target="_blank" rel="noopener"
+           href="https://www.openstreetmap.org/?mlat={{ c.latitude }}&mlon={{ c.longitude }}#map=15/{{ c.latitude }}/{{ c.longitude }}">Directions</a>
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}
