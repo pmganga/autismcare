@@ -13,7 +13,7 @@
     <a class="brand" href="{% url 'home' %}">AutismCare</a>
     <nav aria-label="Main">
       <ul class="nav">
-        <li><span class="nav-link is-disabled" aria-disabled="true" title="Coming in a later increment">Screening</span></li>
+        <li><a class="nav-link {% if request.resolver_match.url_name|slice:':9' == 'screening' %}is-active{% endif %}" href="{% url 'screening' %}">Screening</a></li>
         <li><a class="nav-link {% if request.resolver_match.url_name == 'find' %}is-active{% endif %}" href="{% url 'find' %}">Find a therapist</a></li>
         <li><span class="nav-link is-disabled" aria-disabled="true" title="Coming in a later increment">Teaching assistant</span></li>
       </ul>

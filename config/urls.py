@@ -5,8 +5,10 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/auth/", include("accounts.api_urls")),
     path("api/", include("directory.api_urls")),
+    path("api/", include("screening.api_urls")),
     path("", include("accounts.urls")),
     path("", include("directory.urls")),
+    path("", include("screening.urls")),
 ]
 
 admin.site.site_header = "AutismCare administration"

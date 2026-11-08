@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Early screening · AutismCare{% endblock %}
+{% block content %}
+{% include "screening/_disclaimer.html" %}
+<section class="card narrow">
+  <h1>Early developmental screening</h1>
+  <p>Answer 20 short yes/no questions about how your child usually behaves. It takes about 5 minutes.</p>
+  <ul>
+    <li>For children aged <strong>{{ min_age }} to {{ max_age }} months</strong>.</li>
+    <li><strong>Anonymous.</strong> We don't ask for your name, phone number or email.</li>
+    <li>You'll get a result straight away, with suggested next steps.</li>
+  </ul>
+  <p>Answer based on what your child <em>usually</em> does. If they have done something only once or twice, answer "No".</p>
+  <a class="btn" href="{% url 'screening-questions' %}">Start the questionnaire</a>
+</section>
+{% endblock %}

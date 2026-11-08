@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Your screening result · AutismCare{% endblock %}
+{% block content %}
+{% include "screening/_disclaimer.html" %}
+
+<section class="card narrow result-card tier-{{ result.tier|lower }}">
+  <p class="help">Screening result · {{ result.calculated_at|date:"j M Y" }} · child aged {{ session.child_age_months }} months</p>
+  <h1>{{ guidance.heading }}</h1>
+  <p class="tier-badge">Score {{ result.score }} of 20</p>
+  <p>{{ guidance.summary }}</p>
+
+  <h2>Suggested next steps</h2>
+  <ol>{% for step in guidance.next_steps %}<li>{{ step }}</li>{% endfor %}</ol>
+
+  {% if result.tier == "HIGH" %}
+    <a class="btn" href="{% url 'find' %}">Find a therapist near you</a>
+  {% elif result.tier == "MEDIUM" %}
+    <a class="btn btn-secondary" href="{% url 'find' %}">Find a therapist near you</a>
+  {% endif %}
+  <p class="help">This result is only saved anonymously. Bookmark this page to see it again on this device.</p>
+</section>
+{% endblock %}
