@@ -1,7 +1,35 @@
-# AutismCare: Increment 1 (Therapist Directory)
+# AutismCare
 
-The SRS's Weeks 3–5 increment: database schemas, therapist and clinic profiles,
-map and geospatial search, and search filters.
+| Increment | Weeks | Status |
+|---|---|---|
+| 1. Therapist directory | 3–5 | Built |
+| 2a. Screening: questionnaire and risk scoring | 6 | Built |
+| 2b. Screening: PDF report and referral flow | 7 | Next |
+| 3. AI teaching assistant | 8–9 | Not started |
+
+## Screening (Week 6)
+
+| Requirement | Where it's built |
+|---|---|
+| FR 1.1 Intake questionnaire (20 yes/no items, one per screen) | `screening/views.py`, `templates/screening/`, `static/js/screening.js` |
+| FR 2.1 Risk score within 1.5 s, Low/Medium/High tiers | `screening/scoring.py` (0–2 Low, 3–7 Medium, 8–20 High) |
+| NFR 4 Anonymous: no personal information stored | `screening/models.py` (a test checks there are no personal-data fields) |
+| NFR 7 Disclaimer on every screening screen | `templates/screening/_disclaimer.html` |
+
+```powershell
+python manage.py seed_questions               # loads 20 PLACEHOLDER items
+python manage.py seed_questions --file q.json # loads licensed text once permission is granted
+```
+
+**Questionnaire wording:** using M-CHAT-R/F in an app requires permission from its
+authors. Until permission is granted, `seed_questions` loads placeholder text with
+the same structure (20 yes/no items; items 2, 5 and 12 reverse-scored). The
+scoring rules work unchanged once the real wording is loaded.
+
+**Encryption at rest (NFR 3):** planned at the infrastructure level, using a
+managed PostgreSQL host with AES-256 storage encryption turned on.
+
+## Therapist directory (Weeks 3–5)
 
 | Requirement | Where it's built |
 |---|---|
@@ -21,6 +49,7 @@ cd C:\Users\Peter\autismcare
 .\venv\Scripts\activate
 python manage.py migrate
 python manage.py seed                 # demo therapists and filter options
+python manage.py seed_questions       # screening questionnaire (placeholder text)
 python manage.py createsuperuser      # your admin account
 python manage.py runserver
 ```
@@ -69,6 +98,9 @@ locust -f perf/locustfile.py --host http://127.0.0.1:8000 --users 100 --spawn-ra
 | GET | `/api/therapists/search/?lat=&lng=&radius=&specialization=&insurance=&mode=` | public |
 | GET | `/api/therapists/<id>/` | public (verified only) |
 | GET | `/api/filter-options/`, `/api/geocode/?q=` | public |
+| GET | `/api/screening/questionnaire/` | public |
+| POST | `/api/screenings/` `{child_age_months, answers: [{question, value}]}`, which returns a result and a one-time `token` | public, anonymous |
+| GET | `/api/screenings/<id>/?token=` | whoever holds the token |
 
 Authenticated API calls send the header `Authorization: Token <token>`.
 
