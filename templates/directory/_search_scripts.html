@@ -1,0 +1,9 @@
+{% load static %}<script>
+  window.AUTISMCARE = {
+    searchUrl: "{% url 'api-search' %}",
+    filterUrl: "{% url 'api-filter-options' %}",
+    geocodeUrl: "{% url 'api-geocode' %}",
+    profileUrl: "{% url 'therapist-detail' 0 %}".replace("/0/", "/{id}/"),
+  };
+</script>
+<script src="{% static 'js/find.js' %}"></script>

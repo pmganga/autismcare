@@ -12,11 +12,31 @@
   <h2>Suggested next steps</h2>
   <ol>{% for step in guidance.next_steps %}<li>{{ step }}</li>{% endfor %}</ol>
 
-  {% if result.tier == "HIGH" %}
-    <a class="btn" href="{% url 'find' %}">Find a therapist near you</a>
-  {% elif result.tier == "MEDIUM" %}
-    <a class="btn btn-secondary" href="{% url 'find' %}">Find a therapist near you</a>
+  {% if rescreen.text %}
+    <div class="rescreen" data-testid="rescreen">
+      <h2>When to screen again</h2>
+      <p>{{ rescreen.text }}</p>
+      {% if rescreen.due %}
+        <a class="btn btn-quiet" href="{% url 'screening-reminder' session.pk %}">Add a reminder to my calendar</a>
+      {% endif %}
+    </div>
   {% endif %}
+
+  <h2>Your report</h2>
+  <p>Download a PDF summary of your answers and next steps to show a health worker or therapist.</p>
+  <div class="row wrap">
+    <a class="btn btn-secondary" href="{% url 'screening-report' session.pk %}" data-testid="report-link">Download report (PDF)</a>
+    {% if result.tier == "MEDIUM" %}<a class="btn btn-quiet" href="{% url 'find' %}">Find a therapist</a>{% endif %}
+  </div>
   <p class="help">This result is only saved anonymously. Bookmark this page to see it again on this device.</p>
 </section>
+
+{% if show_referral %}
+<section class="narrow referral" id="find-therapist" data-testid="referral">
+  <h2>Find a therapist near you</h2>
+  <p>Share your location or type your town to see verified autism therapists nearby. Your location is only used for this search and is not saved.</p>
+  {% include "directory/_search_panel.html" %}
+</section>
+{% endif %}
 {% endblock %}
+{% block scripts %}{% if show_referral %}{% include "directory/_search_scripts.html" %}{% endif %}{% endblock %}

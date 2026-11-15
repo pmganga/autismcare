@@ -63,8 +63,8 @@ def get_or_create_report(result):
     return report
 
 
-def build_pdf(session, directory_url=None):
-    """Return (pdf_bytes, GuidanceReport)."""
+def build_pdf(session, directory_url=None, compress=True):
+    """Return (pdf_bytes, GuidanceReport). compress=False keeps text readable for tests."""
     result = session.result
     guidance = TIER_GUIDANCE[result.tier]
     report = get_or_create_report(result)
@@ -77,6 +77,7 @@ def build_pdf(session, directory_url=None):
     advice = rescreen_advice(session.child_age_months, result.tier, screened_on)
 
     pdf = _Report(format="A4")
+    pdf.set_compression(compress)
     pdf.set_auto_page_break(auto=True, margin=18)
     pdf.set_margins(18, 16, 18)
     pdf.add_page()
