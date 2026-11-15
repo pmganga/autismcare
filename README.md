@@ -4,7 +4,7 @@
 |---|---|---|
 | 1. Therapist directory | 3–5 | Built |
 | 2a. Screening: questionnaire and risk scoring | 6 | Built |
-| 2b. Screening: PDF report and referral flow | 7 | Next |
+| 2b. Screening: PDF report and referral flow | 7 | Built |
 | 3. AI teaching assistant | 8–9 | Not started |
 
 ## Screening (Week 6)
@@ -15,6 +15,10 @@
 | FR 2.1 Risk score within 1.5 s, Low/Medium/High tiers | `screening/scoring.py` (0–2 Low, 3–7 Medium, 8–20 High) |
 | NFR 4 Anonymous: no personal information stored | `screening/models.py` (a test checks there are no personal-data fields) |
 | NFR 7 Disclaimer on every screening screen | `templates/screening/_disclaimer.html` |
+| FR 2.2 PDF guidance report (indicators, next steps, all answers, disclaimer) | `screening/report.py`; `/screening/result/<id>/report.pdf` |
+| High result leads straight into a location-based therapist search (sequence diagram, alt tier == HIGH) | `templates/screening/result.html` + `templates/directory/_search_panel.html` |
+| Medium/Low: guidance plus rescreen reminder, downloadable as a calendar file (.ics) | `screening/rescreen.py`, `screening/reminder.py` |
+| End-to-end test of the screening-to-referral flow | `screening/tests_week7.py` (`EndToEndReferralTests`) |
 
 ```powershell
 python manage.py seed_questions               # loads 20 PLACEHOLDER items
@@ -101,6 +105,7 @@ locust -f perf/locustfile.py --host http://127.0.0.1:8000 --users 100 --spawn-ra
 | GET | `/api/screening/questionnaire/` | public |
 | POST | `/api/screenings/` `{child_age_months, answers: [{question, value}]}`, which returns a result and a one-time `token` | public, anonymous |
 | GET | `/api/screenings/<id>/?token=` | whoever holds the token |
+| GET | `/api/screenings/<id>/report/?token=`, which returns the PDF report | whoever holds the token |
 
 Authenticated API calls send the header `Authorization: Token <token>`.
 

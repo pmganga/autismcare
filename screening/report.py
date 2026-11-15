@@ -133,7 +133,7 @@ def build_pdf(session, directory_url=None, compress=True):
     pdf.set_fill_color(228, 235, 242)
     pdf.set_font("Helvetica", "B", 10)
     pdf.set_text_color(44, 74, 102)
-    pdf.multi_cell(0, 6, _latin1("Important: " + DISCLAIMER), fill=True, padding=3,
+    pdf.multi_cell(0, 6, _latin1("Important: " + DISCLAIMER), fill=True, padding=3, align="L",
                    new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
     GuidanceReport.objects.filter(pk=report.pk).update(download_count=F("download_count") + 1)
