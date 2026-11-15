@@ -94,6 +94,7 @@ class TherapistSearchView(APIView):
         return Response(
             {
                 "count": len(results),
+                "total": results.total,
                 "radius_km": params.radius_km,
                 "results": SearchResultSerializer(results, many=True).data,
             }

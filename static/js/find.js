@@ -126,9 +126,16 @@
   function render(data) {
     var list = $("results");
     list.textContent = "";
-    $("result-summary").textContent = data.count
-      ? data.count + " verified therapist" + (data.count === 1 ? "" : "s") + " within " + data.radius_km + " km"
-      : "No verified therapists found within " + data.radius_km + " km. Try a larger radius or fewer filters.";
+    var summary;
+    if (!data.count) {
+      summary = "No verified therapists found within " + data.radius_km + " km. Try a larger radius or fewer filters.";
+    } else if (data.total > data.count) {
+      summary = "Showing the " + data.count + " nearest of " + data.total + " verified therapists within " +
+        data.radius_km + " km";
+    } else {
+      summary = data.count + " verified therapist" + (data.count === 1 ? "" : "s") + " within " + data.radius_km + " km";
+    }
+    $("result-summary").textContent = summary;
 
     data.results.forEach(function (t) {
       var nearest = t.clinics[0];
