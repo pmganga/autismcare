@@ -81,3 +81,20 @@ class RiskResult(models.Model):
 
     def __str__(self):
         return f"{self.get_tier_display()} ({self.score})"
+
+
+class GuidanceReport(models.Model):
+    """FR 2.2: record of the PDF guidance report (class diagram: GuidanceReport).
+
+    The PDF itself is generated on demand from the stored answers, so no file
+    containing health data is kept on disk.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    result = models.OneToOneField(RiskResult, on_delete=models.CASCADE, related_name="report")
+    next_steps = models.TextField()
+    generated_at = models.DateTimeField(auto_now_add=True)
+    download_count = models.PositiveIntegerField(default=0)
+
+    def __str__(self):
+        return f"Report {str(self.id)[:8]}"
