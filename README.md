@@ -66,16 +66,35 @@ Then open:
 
 ## Switch to PostgreSQL
 
-Without a `.env` file the app uses a local SQLite file. To use PostgreSQL:
+Without a `.env` file the app uses a local SQLite file. To switch, run this in
+your own PowerShell window. It asks for your `postgres` password, creates the
+database and user, writes `.env`, and loads the tables and demo data:
 
-1. Open **SQL Shell (psql)** from the Start menu and log in as `postgres`. Then run:
-   ```sql
-   CREATE USER autismcare_user WITH PASSWORD 'choose-a-strong-password';
-   CREATE DATABASE autismcare OWNER autismcare_user;
-   ALTER USER autismcare_user CREATEDB;  -- lets the test runner create its test database
-   ```
-2. Copy `.env.example` to `.env` and put the same password in `DB_PASSWORD`.
-3. Run `python manage.py migrate`, `python manage.py seed` and `python manage.py createsuperuser` again.
+```powershell
+powershell -ExecutionPolicy Bypass -File .\setup_postgres.ps1
+python manage.py createsuperuser
+```
+
+## Test on a phone
+
+1. Connect the phone to the same Wi-Fi as the laptop. The setup script adds the laptop's Wi-Fi address to `DJANGO_ALLOWED_HOSTS`.
+2. Run `python manage.py runserver 0.0.0.0:8000` and allow it through Windows Firewall if asked.
+3. On the phone, open `http://<laptop Wi-Fi IP>:8000/` (find the IP with `ipconfig`).
+
+Note: phone browsers only allow **"Use my location"** on HTTPS sites (or on
+`localhost`), so over plain Wi-Fi use the typed-town search. GPS will work once
+the app is deployed with HTTPS.
+
+## Production-style server
+
+`runserver` is for development only and handles one request at a time. To run
+several worker processes (needed for the NFR 1 load test):
+
+```powershell
+uvicorn config.asgi:application --host 127.0.0.1 --port 8000 --workers 3
+```
+
+On the Linux deployment target (SRS 2.4), use gunicorn or uvicorn with one worker per CPU core.
 
 ## Tests
 
@@ -84,6 +103,22 @@ python manage.py test
 ```
 
 ## Load test (NFR 1)
+
+Results on the development laptop (4 CPU cores shared between the server and
+Locust; SQLite; 10,000 clinics; 100 users each searching every 1–3 s):
+
+| Setup | Median | 95th percentile | Requests/s | Errors |
+|---|---|---|---|---|
+| `runserver`, first search version | 3,100 ms | 8,600 ms | 17 | 0 |
+| `runserver`, optimised search | 710 ms | 5,800 ms | 27 | 0 |
+| uvicorn, 3 workers, optimised search | **350 ms** | 1,700 ms | 25 | 0 |
+
+A single search takes 30–70 ms. Under load the median meets the 500 ms target,
+but the 95th percentile doesn't yet, because the laptop runs out of CPU. Still to do:
+re-run on PostgreSQL with Locust on a separate machine, or on the cloud deployment.
+
+The results are capped at the 30 nearest therapists (3 clinics each), with a
+total count. This keeps responses small on 3G.
 
 ```powershell
 python manage.py seed --bulk 10000
