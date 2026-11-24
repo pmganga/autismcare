@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Session summary · AutismCare{% endblock %}
+{% block content %}
+<p><a href="{% url 'teach' %}">← Back to my classroom</a></p>
+<section class="card">
+  <h1>Session summary: {{ session.learner.nickname }}</h1>
+  <p class="help">{{ session.started_at|date:"j M Y, H:i" }} · {{ session.get_sensory_mode_display }} · audio {{ session.audio_enabled|yesno:"on,off" }}</p>
+  <div class="grid-3 stats">
+    <div class="stat"><span class="stat-value">{{ session.correct_count }} / {{ session.total_attempts }}</span><span class="help">correct{% if session.accuracy_percent is not None %} ({{ session.accuracy_percent }}%){% endif %}</span></div>
+    <div class="stat"><span class="stat-value">{{ session.start_level }} → {{ session.end_level|default:session.current_level }}</span><span class="help">difficulty level</span></div>
+    <div class="stat"><span class="stat-value">{{ avg_seconds|default:"–" }}{% if avg_seconds %} s{% endif %}</span><span class="help">average answer time</span></div>
+  </div>
+  {% if session.ai_status == "used" %}<p class="help">The AI service added {{ session.ai_cards_added }} new card{{ session.ai_cards_added|pluralize }} for this session.</p>
+  {% elif session.ai_status == "unavailable" %}<p class="help">The AI service didn't answer in time, so built-in cards were used.</p>{% endif %}
+</section>
+
+<section class="card">
+  <h2>Card by card</h2>
+  {% if attempts %}
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr><th>#</th><th>Card</th><th>Answer</th><th>Result</th><th>Time</th><th>Level</th></tr></thead>
+      <tbody>
+        {% for a in attempts %}
+          <tr>
+            <td>{{ a.number }}</td>
+            <td><span aria-hidden="true">{{ a.flashcard.symbol }}</span> {{ a.flashcard.label }}</td>
+            <td>{{ a.chosen_label }}</td>
+            <td>{% if a.is_correct %}<span class="tag">Correct</span>{% else %}Not yet{% endif %}</td>
+            <td>{{ a.response_time_ms|floatformat:"0" }} ms</td>
+            <td>{{ a.level }}{% if a.level_after != a.level %} → {{ a.level_after }}{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p class="muted">No cards were answered in this session.</p>
+  {% endif %}
+  <a class="btn" href="{% url 'teach-start' session.learner.pk %}">Start another session</a>
+</section>
+{% endblock %}
