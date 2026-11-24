@@ -34,7 +34,8 @@ def login_view(request):
         user = authenticate(request, email=email, password=form.cleaned_data["password"])
         if user is not None:
             login(request, user)
-            return redirect(request.GET.get("next") or "dashboard")
+            default = {"TEACHER": "teach", "ADMIN": "admin:index"}.get(user.role, "dashboard")
+            return redirect(request.GET.get("next") or default)
         form.add_error(None, LOCKED_MESSAGE if is_locked(email) else INVALID_MESSAGE)
     return render(request, "accounts/login.html", {"form": form})
 

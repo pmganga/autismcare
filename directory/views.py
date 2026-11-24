@@ -35,6 +35,8 @@ def _therapist_or_redirect(request):
 
 @login_required
 def dashboard(request):
+    if hasattr(request.user, "teacher_profile"):
+        return redirect("teach")
     therapist = _therapist_or_redirect(request)
     if therapist is None:
         return redirect("admin:index" if request.user.is_staff else "home")

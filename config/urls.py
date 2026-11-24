@@ -9,6 +9,7 @@ urlpatterns = [
     path("", include("accounts.urls")),
     path("", include("directory.urls")),
     path("", include("screening.urls")),
+    path("", include("learning.urls")),
 ]
 
 admin.site.site_header = "AutismCare administration"
