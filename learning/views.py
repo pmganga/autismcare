@@ -71,8 +71,6 @@ def session_setup(request, pk):
     form = SessionSettingsForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         session = start_session(request.teacher, learner, **form.cleaned_data)
-        if session.ai_status == LearningSession.AIStatus.UNAVAILABLE:
-            messages.info(request, "The AI card service didn't answer in time, so built-in cards are used.")
         return redirect("teach-play", pk=session.pk)
     return render(request, "learning/session_setup.html", {
         "learner": learner, "form": form, "ai_configured": ai.is_configured(),

@@ -16,15 +16,29 @@
 | FR 4.1 High-contrast picture flashcards with simple word choices, one per screen, no animation | `templates/learning/play.html`, `static/js/play.js` |
 | FR 4.2 Adaptive level: after every 3 cards, 3/3 correct = up, ≤1 = down, else same (levels 1–5) | `learning/engine.py` `evaluate()` |
 | Calm audio cue (spoken word + soft chime) for correct; gentle visual hint for wrong | `static/js/play.js` |
-| AI/NLP service generates new cards for the learner's level (Claude), 5 s timeout, built-in fallback | `learning/ai.py` |
+| AI/NLP service generates new cards for the learner's level (local Qwen model via Ollama), in the background with built-in fallback | `learning/ai.py`, `learning/services.py` |
 | Progress summary: accuracy, level change, response times, card by card | `templates/learning/summary.html` |
 
-**AI setup (optional).** Put `ANTHROPIC_API_KEY=...` in `.env` to have Claude
-generate new cards at the start of each session. Without a key, or if the
-service doesn't answer within 5 seconds, sessions use the 60 built-in cards
-(12 per level), so the module always works. Every AI card is checked before use:
-a simple lowercase word, a real emoji, an allowed category, a not-child-safe
-word list, and no duplicates.
+**AI setup (optional).** New cards are made by **Qwen 3.5 (2B)**, an open-source
+model that runs on the same computer through [Ollama](https://ollama.com). No
+learner data leaves the machine and there is no per-request cost.
+
+```powershell
+ollama pull qwen3.5:2b                         # once (2.7 GB)
+python manage.py generate_flashcards           # optional: fill the bank before a class or demo
+```
+
+- **Background generation.** On a laptop CPU the model takes 15–60 seconds per
+  request, so it never holds up a learner. A session starts at once with the
+  card bank, the model works in the background, and its cards join the bank
+  when ready (status shown on the session summary).
+- **Picture check.** Every AI card is checked before use: a simple lowercase word,
+  a real emoji whose official Unicode name contains that word (so 🚌 "bus" passes,
+  💧 "water" is rejected), an allowed category, a not-child-safe word list, and
+  no duplicates.
+- **Fallback.** If Ollama isn't running (or `OLLAMA_URL` is empty, as on the
+  cloud deployment), sessions use the 60 built-in cards (12 per level). The
+  module always works.
 
 ## Screening (Week 6)
 

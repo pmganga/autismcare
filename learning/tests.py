@@ -134,6 +134,7 @@ class SessionFlowTests(TestCase):
         self.assertEqual(session.attempts.get().response_time_ms, 1200)
 
 
+@override_settings(AI_FLASHCARDS_BACKGROUND=False)
 class AIFallbackTests(TestCase):
     def setUp(self):
         self.teacher = make_teacher()
@@ -165,41 +166,75 @@ class AIFallbackTests(TestCase):
         with patch("learning.ai.is_configured", return_value=False):
             self.assertEqual(self.start().ai_status, "off")
 
+    @override_settings(OLLAMA_URL="")
+    def test_no_ollama_url_means_off(self):
+        self.assertFalse(ai.is_configured())
+        self.assertEqual(self.start().ai_status, "off")
 
-@override_settings(AI_FLASHCARDS_ENABLED=True)
-@patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"})
+    @override_settings(AI_FLASHCARDS_BACKGROUND=True)
+    @patch("learning.ai.is_configured", return_value=True)
+    @patch("learning.services.threading.Thread")
+    def test_background_start_does_not_wait(self, thread_cls, _cfg):
+        session = self.start()
+        self.assertEqual(session.ai_status, "pending")          # session returned before the model ran
+        thread_cls.return_value.start.assert_called_once()
+        self.assertIsNotNone(next_card(session))                 # learner can begin straight away
+        from .services import _ai_busy
+        _ai_busy.release()  # the patched thread never ran, so release its lock
+
+
+@override_settings(AI_FLASHCARDS_ENABLED=True, OLLAMA_URL="http://ollama.test:11434", AI_FLASHCARDS_MODEL="qwen3.5:2b")
 class GenerateCardsTests(TestCase):
-    """Runs the real generate_cards() against a simulated Claude response (no network, no cost)."""
+    """Runs the real generate_cards() against a simulated Ollama reply (no model, no network)."""
 
-    def fake_response(self, stop_reason="end_turn", text=None):
-        from types import SimpleNamespace
-        text = text or json.dumps({"cards": [
+    def fake_reply(self, content=None, status=200):
+        from unittest.mock import MagicMock
+        content = content if content is not None else json.dumps({"cards": [
             {"label": "drum", "emoji": "🥁", "category": "home"},
             {"label": "knife", "emoji": "🔪", "category": "home"},
+            {"label": "water", "emoji": "💧", "category": "nature"},
             {"label": "kite", "emoji": "🪁", "category": "home"},
         ]})
-        return SimpleNamespace(stop_reason=stop_reason, _request_id="req_test",
-                               content=[SimpleNamespace(type="text", text=text)])
+        reply = MagicMock(status_code=status)
+        reply.json.return_value = {"message": {"role": "assistant", "content": content}}
+        return reply
 
-    @patch("learning.ai.anthropic.Anthropic")
-    def test_parses_and_filters(self, client_cls):
-        client_cls.return_value.beta.messages.create.return_value = self.fake_response()
+    @patch("learning.ai.requests.post")
+    def test_parses_and_filters(self, post):
+        post.return_value = self.fake_reply()
         cards = ai.generate_cards(level=2, count=4, avoid={"ball"})
-        self.assertEqual([c["label"] for c in cards], ["drum", "kite"])  # knife filtered out
-        kwargs = client_cls.return_value.beta.messages.create.call_args.kwargs
-        self.assertEqual(kwargs["model"], "claude-opus-5-5")
-        self.assertEqual(kwargs["output_config"]["format"]["type"], "json_schema")
-        self.assertEqual(client_cls.call_args.kwargs["timeout"], 5)
+        self.assertEqual([c["label"] for c in cards], ["drum", "kite"])  # knife unsafe, water ≠ 💧 DROPLET
+        url, kwargs = post.call_args.args[0], post.call_args.kwargs
+        self.assertEqual(url, "http://ollama.test:11434/api/chat")
+        self.assertEqual(kwargs["json"]["model"], "qwen3.5:2b")
+        self.assertEqual(kwargs["json"]["format"]["required"], ["cards"])  # structured output schema
+        self.assertFalse(kwargs["json"]["stream"])
+        self.assertEqual(kwargs["timeout"], 120)
 
-    @patch("learning.ai.anthropic.Anthropic")
-    def test_refusal_raises_unavailable(self, client_cls):
-        client_cls.return_value.beta.messages.create.return_value = self.fake_response(stop_reason="refusal")
+    @patch("learning.ai.requests.post")
+    def test_ollama_not_running_raises_unavailable(self, post):
+        import requests
+        post.side_effect = requests.ConnectionError("refused")
         with self.assertRaises(ai.AIUnavailable):
             ai.generate_cards(level=2, count=4)
 
-    @patch("learning.ai.anthropic.Anthropic")
-    def test_bad_json_raises_unavailable(self, client_cls):
-        client_cls.return_value.beta.messages.create.return_value = self.fake_response(text="not json")
+    @patch("learning.ai.requests.post")
+    def test_timeout_raises_unavailable(self, post):
+        import requests
+        post.side_effect = requests.Timeout()
+        with self.assertRaises(ai.AIUnavailable):
+            ai.generate_cards(level=2, count=4)
+
+    @patch("learning.ai.requests.post")
+    def test_bad_json_raises_unavailable(self, post):
+        post.return_value = self.fake_reply(content="not json")
+        with self.assertRaises(ai.AIUnavailable):
+            ai.generate_cards(level=2, count=4)
+
+    @patch("learning.ai.requests.post")
+    def test_only_bad_cards_raises_unavailable(self, post):
+        post.return_value = self.fake_reply(content=json.dumps({"cards": [
+            {"label": "Card 1", "emoji": "🚌", "category": "transport"}]}))
         with self.assertRaises(ai.AIUnavailable):
             ai.generate_cards(level=2, count=4)
 
@@ -213,8 +248,17 @@ class ValidationTests(TestCase):
             {"label": "kite", "emoji": "kite", "category": "home"},       # not an emoji
             {"label": "ball", "emoji": "⚽", "category": "home"},          # already exists
             {"label": "yak", "emoji": "🐃", "category": "pets"},           # unknown category
+            {"label": "cat", "emoji": "🚌", "category": "animals"},        # picture doesn't match word
+            {"label": "Card 2", "emoji": "🚌", "category": "transport"},   # not an object name
         ]
         self.assertEqual([c["label"] for c in ai.validate_cards(raw, avoid={"ball"})], ["drum"])
+
+    def test_picture_matches_unicode_name(self):
+        self.assertTrue(ai.picture_matches("bus", "🚌"))
+        self.assertTrue(ai.picture_matches("shoe", "👟"))       # ATHLETIC SHOE
+        self.assertTrue(ai.picture_matches("sun", "☀️"))        # variation selector ignored
+        self.assertFalse(ai.picture_matches("water", "💧"))     # DROPLET
+        self.assertFalse(ai.picture_matches("dog", "🐈"))
 
 
 @override_settings(AI_FLASHCARDS_ENABLED=False)

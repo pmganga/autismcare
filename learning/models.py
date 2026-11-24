@@ -84,6 +84,7 @@ class LearningSession(models.Model):
         OFF = "off", "AI not configured"
         USED = "used", "AI cards added"
         UNAVAILABLE = "unavailable", "AI unavailable, used built-in cards"
+        PENDING = "pending", "AI cards being generated in the background"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     teacher = models.ForeignKey(TeacherProfile, on_delete=models.CASCADE, related_name="sessions")

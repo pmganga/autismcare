@@ -1,6 +1,6 @@
 """Learning session flow, following the activity diagram (Appendix B.4).
 
-start_session  -> retrieve learner's level, ask the AI/NLP service for cards
+start_session  -> retrieve learner's level, ask the AI/NLP service for cards (in the background)
 next_card      -> display a flashcard (picture + word choices)
 answer         -> record the attempt; every 3 attempts, the adaptive engine
                   raises, lowers or keeps the level
@@ -8,8 +8,10 @@ finish_session -> save the progress summary (accuracy, new level)
 """
 import logging
 import random
+import threading
 
-from django.db import transaction
+from django.conf import settings
+from django.db import connections, transaction
 from django.utils import timezone
 
 from . import ai
@@ -37,26 +39,58 @@ def start_session(teacher, learner, *, audio_enabled, sensory_mode, planned_card
         start_level=level,
         current_level=level,
     )
-    _add_ai_cards(session, level)
+    request_ai_cards(session)
     return session
 
 
-def _add_ai_cards(session, level):
-    """Ask the AI service for new cards at this level. Built-in cards cover any failure."""
+_ai_busy = threading.Lock()  # one generation at a time: the local model uses the whole CPU
+
+
+def request_ai_cards(session):
+    """Ask the AI service for new cards at the session's level, without making the learner wait.
+
+    In the background (the default) the session starts at once with the cards
+    already in the bank; new cards join the bank when the model finishes and
+    can appear later in this session or the next one.
+    """
     if not ai.is_configured():
         return
-    existing = set(Flashcard.objects.values_list("label", flat=True))
+    if not _ai_busy.acquire(blocking=False):
+        return  # a generation is already running; this session uses the bank as it is
+    _set_ai_status(session.pk, LearningSession.AIStatus.PENDING)
+    session.ai_status = LearningSession.AIStatus.PENDING
+    if settings.AI_FLASHCARDS_BACKGROUND:
+        threading.Thread(target=_generate, args=(session.pk, session.start_level), daemon=True).start()
+    else:
+        _generate(session.pk, session.start_level)
+        session.refresh_from_db(fields=["ai_status", "ai_cards_added"])
+
+
+def _generate(session_pk, level):
     try:
-        cards = ai.generate_cards(level=level, count=AI_CARDS_PER_SESSION, avoid=existing)
-    except ai.AIUnavailable as e:
-        log.warning("AI flashcards unavailable, using built-in cards: %s", e)
-        session.ai_status = LearningSession.AIStatus.UNAVAILABLE
-        session.save(update_fields=["ai_status"])
-        return
-    added = ai.save_cards(cards, level)
-    session.ai_status = LearningSession.AIStatus.USED
-    session.ai_cards_added = added
-    session.save(update_fields=["ai_status", "ai_cards_added"])
+        existing = set(Flashcard.objects.values_list("label", flat=True))
+        try:
+            cards = ai.generate_cards(level=level, count=AI_CARDS_PER_SESSION, avoid=existing)
+        except ai.AIUnavailable as e:
+            log.warning("AI flashcards unavailable, using built-in cards: %s", e)
+            _set_ai_status(session_pk, LearningSession.AIStatus.UNAVAILABLE)
+            return
+        added = ai.save_cards(cards, level)
+        _set_ai_status(session_pk, LearningSession.AIStatus.USED, added)
+    except Exception:  # never let a background failure go unnoticed or break the app
+        log.exception("AI flashcard generation failed")
+        _set_ai_status(session_pk, LearningSession.AIStatus.UNAVAILABLE)
+    finally:
+        _ai_busy.release()
+        if settings.AI_FLASHCARDS_BACKGROUND:
+            connections.close_all()  # this thread's own database connection
+
+
+def _set_ai_status(session_pk, status, added=None):
+    fields = {"ai_status": status}
+    if added is not None:
+        fields["ai_cards_added"] = added
+    LearningSession.objects.filter(pk=session_pk).update(**fields)
 
 
 def _pick_card(session):
