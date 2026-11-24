@@ -1,4 +1,5 @@
 """AI teaching assistant tests: FR 4.1, FR 4.2, activity diagram B.4, privacy, permissions, AI fallback."""
+import json
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -163,6 +164,44 @@ class AIFallbackTests(TestCase):
     def test_not_configured_means_off(self):
         with patch("learning.ai.is_configured", return_value=False):
             self.assertEqual(self.start().ai_status, "off")
+
+
+@override_settings(AI_FLASHCARDS_ENABLED=True)
+@patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"})
+class GenerateCardsTests(TestCase):
+    """Runs the real generate_cards() against a simulated Claude response (no network, no cost)."""
+
+    def fake_response(self, stop_reason="end_turn", text=None):
+        from types import SimpleNamespace
+        text = text or json.dumps({"cards": [
+            {"label": "drum", "emoji": "🥁", "category": "home"},
+            {"label": "knife", "emoji": "🔪", "category": "home"},
+            {"label": "kite", "emoji": "🪁", "category": "home"},
+        ]})
+        return SimpleNamespace(stop_reason=stop_reason, _request_id="req_test",
+                               content=[SimpleNamespace(type="text", text=text)])
+
+    @patch("learning.ai.anthropic.Anthropic")
+    def test_parses_and_filters(self, client_cls):
+        client_cls.return_value.beta.messages.create.return_value = self.fake_response()
+        cards = ai.generate_cards(level=2, count=4, avoid={"ball"})
+        self.assertEqual([c["label"] for c in cards], ["drum", "kite"])  # knife filtered out
+        kwargs = client_cls.return_value.beta.messages.create.call_args.kwargs
+        self.assertEqual(kwargs["model"], "claude-opus-5-5")
+        self.assertEqual(kwargs["output_config"]["format"]["type"], "json_schema")
+        self.assertEqual(client_cls.call_args.kwargs["timeout"], 5)
+
+    @patch("learning.ai.anthropic.Anthropic")
+    def test_refusal_raises_unavailable(self, client_cls):
+        client_cls.return_value.beta.messages.create.return_value = self.fake_response(stop_reason="refusal")
+        with self.assertRaises(ai.AIUnavailable):
+            ai.generate_cards(level=2, count=4)
+
+    @patch("learning.ai.anthropic.Anthropic")
+    def test_bad_json_raises_unavailable(self, client_cls):
+        client_cls.return_value.beta.messages.create.return_value = self.fake_response(text="not json")
+        with self.assertRaises(ai.AIUnavailable):
+            ai.generate_cards(level=2, count=4)
 
 
 class ValidationTests(TestCase):

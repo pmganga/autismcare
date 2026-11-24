@@ -5,7 +5,26 @@
 | 1. Therapist directory | 3–5 | Built |
 | 2a. Screening: questionnaire and risk scoring | 6 | Built |
 | 2b. Screening: PDF report and referral flow | 7 | Built |
-| 3. AI teaching assistant | 8–9 | Not started |
+| 3. AI teaching assistant | 8–9 | Built |
+
+## AI teaching assistant (Weeks 8–9)
+
+| Requirement / diagram | Where it's built |
+|---|---|
+| Teacher registers, logs in, adds learners by nickname only | `learning/views.py` (`/teach/register/`, `/teach/`) |
+| Configure sensory settings: audio on/off, colour mode (soft, high contrast, dim), session length | `learning/forms.py` `SessionSettingsForm` |
+| FR 4.1 High-contrast picture flashcards with simple word choices, one per screen, no animation | `templates/learning/play.html`, `static/js/play.js` |
+| FR 4.2 Adaptive level: after every 3 cards, 3/3 correct = up, ≤1 = down, else same (levels 1–5) | `learning/engine.py` `evaluate()` |
+| Calm audio cue (spoken word + soft chime) for correct; gentle visual hint for wrong | `static/js/play.js` |
+| AI/NLP service generates new cards for the learner's level (Claude), 5 s timeout, built-in fallback | `learning/ai.py` |
+| Progress summary: accuracy, level change, response times, card by card | `templates/learning/summary.html` |
+
+**AI setup (optional).** Put `ANTHROPIC_API_KEY=...` in `.env` to have Claude
+generate new cards at the start of each session. Without a key, or if the
+service doesn't answer within 5 seconds, sessions use the 60 built-in cards
+(12 per level), so the module always works. Every AI card is checked before use:
+a simple lowercase word, a real emoji, an allowed category, a not-child-safe
+word list, and no duplicates.
 
 ## Screening (Week 6)
 
@@ -62,6 +81,7 @@ Then open:
 - http://127.0.0.1:8000/ for the home page
 - http://127.0.0.1:8000/find/ to search for a therapist
 - http://127.0.0.1:8000/login/ for therapist login (demo account: `therapist01@demo.autismcare.test` / `DemoTherapist2026!`)
+- http://127.0.0.1:8000/teach/ for the teaching assistant (demo teacher: `teacher01@demo.autismcare.test` / `DemoTherapist2026!`)
 - http://127.0.0.1:8000/admin/ for the admin panel (go to *Licence verifications*, select rows, then Approve)
 
 ## Switch to PostgreSQL
