@@ -17,6 +17,7 @@ list, and not a duplicate.
 """
 import json
 import logging
+import random
 import re
 import unicodedata
 
@@ -72,6 +73,18 @@ OUTPUT_SCHEMA = {
     "required": ["cards"],
 }
 
+# A small model ignores a long "don't repeat" list and keeps suggesting cat, dog
+# and banana, which the built-in bank already has. Asking for one category and
+# a theme per request steers it to new objects.
+THEMES = {
+    "animals": ["farm animals", "wild animals of the savannah", "animals that live in water", "birds", "insects and small creatures"],
+    "food": ["fruits sold at the market", "vegetables", "foods eaten at breakfast", "drinks and snacks"],
+    "transport": ["vehicles on the road", "vehicles that fly or float", "vehicles that work on farms or building sites"],
+    "home": ["things in the kitchen", "things in a classroom", "furniture", "toys and games", "tools"],
+    "nature": ["weather and the sky", "plants and flowers", "things at the lake or beach"],
+    "clothes": ["clothes", "shoes and hats", "things you wear or carry"],
+}
+
 EXAMPLE = json.dumps({"cards": [
     {"label": "cow", "emoji": "\U0001F404", "category": "animals"},
     {"label": "bread", "emoji": "\U0001F35E", "category": "food"},
@@ -108,7 +121,7 @@ def picture_matches(label, emoji):
     ('car' + 🚗 AUTOMOBILE): that is the safe side for a teaching app.
     """
     name_words = set(emoji_name(emoji).lower().split())
-    return bool(name_words) and all(w in name_words for w in label.split())
+    return bool(name_words) and all(w in name_words or w + "s" in name_words for w in label.split())
 
 
 def validate_cards(raw_cards, avoid=()):
@@ -134,19 +147,22 @@ def validate_cards(raw_cards, avoid=()):
     return valid
 
 
-def generate_cards(*, level, count, avoid=(), timeout=None):
+def generate_cards(*, level, count, avoid=(), timeout=None, category=None, theme=None):
     """Ask the local model for `count` new cards at `level`. Returns validated cards or raises AIUnavailable."""
     if not is_configured():
         raise AIUnavailable("AI flashcards are turned off (no OLLAMA_URL).")
     if not MIN_LEVEL <= level <= MAX_LEVEL:
         raise ValueError("level must be 1-5")
     timeout = timeout or settings.AI_FLASHCARDS_TIMEOUT_SECONDS
+    category = category or random.choice(CATEGORIES)
+    theme = theme or random.choice(THEMES[category])
 
-    avoid_list = ", ".join(sorted(avoid)[:150])
+    taken = sorted(a for a in avoid if a)[:80]
     prompt = (
-        f"Make {count + 2} flashcards of {LEVEL_GUIDE[level]} (difficulty level {level} of 5).\n"
+        f"Make {count + 4} flashcards. Topic: {theme}. Difficulty level {level} of 5: {LEVEL_GUIDE[level]}.\n"
+        "Each card is a different object, with the category that fits it.\n"
         f"Example of the format: {EXAMPLE}\n"
-        f"Do not use any of these labels, which already exist: {avoid_list}."
+        f"These words are already used, so pick other objects: {', '.join(taken)}."
     )
     try:
         r = requests.post(
@@ -157,7 +173,7 @@ def generate_cards(*, level, count, avoid=(), timeout=None):
                 "think": False,
                 "format": OUTPUT_SCHEMA,  # Ollama structured output: the reply must match this schema
                 "keep_alive": "30m",      # keep the model loaded between sessions (loading takes ~30 s)
-                "options": {"temperature": 0.4, "num_predict": 600},
+                "options": {"temperature": 0.8, "num_predict": 600},
                 "messages": [
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": prompt},
@@ -186,6 +202,30 @@ def generate_cards(*, level, count, avoid=(), timeout=None):
         raise AIUnavailable("no usable cards in the response")
     log.info("AI generated %d of %d cards at level %d", len(cards), len(raw), level)
     return cards
+
+
+def add_new_cards(*, level, count, max_requests=3):
+    """Generate and save up to `count` new cards at `level`, asking up to `max_requests` times.
+
+    A small model often suggests objects the bank already has, so one request
+    may yield nothing. Returns the saved cards; raises AIUnavailable if the
+    service can't be reached at all.
+    """
+    saved = []
+    for _ in range(max_requests):
+        if len(saved) >= count:
+            break
+        existing = set(Flashcard.objects.values_list("label", flat=True))
+        try:
+            cards = generate_cards(level=level, count=count - len(saved), avoid=existing)
+        except AIUnavailable as e:
+            if isinstance(e.__cause__, requests.RequestException):
+                raise  # not running, timed out or HTTP error: asking again won't help now
+            continue   # this reply had no usable cards: ask again
+        for c in cards:
+            if save_cards([c], level):
+                saved.append(c)
+    return saved
 
 
 def save_cards(cards, level):

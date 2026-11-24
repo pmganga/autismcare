@@ -68,15 +68,15 @@ def request_ai_cards(session):
 
 def _generate(session_pk, level):
     try:
-        existing = set(Flashcard.objects.values_list("label", flat=True))
         try:
-            cards = ai.generate_cards(level=level, count=AI_CARDS_PER_SESSION, avoid=existing)
+            cards = ai.add_new_cards(level=level, count=AI_CARDS_PER_SESSION)
         except ai.AIUnavailable as e:
+            cards = []
             log.warning("AI flashcards unavailable, using built-in cards: %s", e)
+        if cards:
+            _set_ai_status(session_pk, LearningSession.AIStatus.USED, len(cards))
+        else:
             _set_ai_status(session_pk, LearningSession.AIStatus.UNAVAILABLE)
-            return
-        added = ai.save_cards(cards, level)
-        _set_ai_status(session_pk, LearningSession.AIStatus.USED, added)
     except Exception:  # never let a background failure go unnoticed or break the app
         log.exception("AI flashcard generation failed")
         _set_ai_status(session_pk, LearningSession.AIStatus.UNAVAILABLE)

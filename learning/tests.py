@@ -232,6 +232,23 @@ class GenerateCardsTests(TestCase):
             ai.generate_cards(level=2, count=4)
 
     @patch("learning.ai.requests.post")
+    def test_add_new_cards_asks_again_after_unusable_reply(self, post):
+        repeats = json.dumps({"cards": [{"label": "cat", "emoji": "🐈", "category": "animals"}]})  # in the bank
+        post.side_effect = [self.fake_reply(content=repeats), self.fake_reply()]
+        saved = ai.add_new_cards(level=4, count=2)
+        self.assertEqual([c["label"] for c in saved], ["drum", "kite"])
+        self.assertEqual(post.call_count, 2)
+        self.assertEqual(Flashcard.objects.get(label="kite").difficulty, 4)
+
+    @patch("learning.ai.requests.post")
+    def test_add_new_cards_stops_when_ollama_down(self, post):
+        import requests
+        post.side_effect = requests.ConnectionError("refused")
+        with self.assertRaises(ai.AIUnavailable):
+            ai.add_new_cards(level=2, count=4)
+        self.assertEqual(post.call_count, 1)  # no pointless retries
+
+    @patch("learning.ai.requests.post")
     def test_only_bad_cards_raises_unavailable(self, post):
         post.return_value = self.fake_reply(content=json.dumps({"cards": [
             {"label": "Card 1", "emoji": "🚌", "category": "transport"}]}))
