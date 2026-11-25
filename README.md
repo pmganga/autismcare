@@ -81,7 +81,8 @@ managed PostgreSQL host with AES-256 storage encryption turned on.
 | FR 3.2 Filters (specialization, insurance, consultation mode) | `directory/search.py` |
 | FR 3.3 Therapist profile management and licence upload | `directory/views.py`, `directory/api_views.py` |
 | Admin licence verification | `directory/admin.py` (approve/reject actions) |
-| NFR 1 Search under 500 ms at 10k clinics / 100 users | bounding box + indexed lat/lng; `perf/locustfile.py` |
+| NFR 1 Search under 500 ms at 10k clinics / 100 users | `directory/search.py` (bounding box, indexed lat/lng, saved list of verified therapists); `perf/locustfile.py` |
+| NFR 5 Accessibility (WCAG 2.1 AA) | `config/tests_accessibility.py`; see [Accessibility](#accessibility-nfr-5) |
 | SRS 3.1 UI (low-saturation colours, 48 px targets, inline errors) | `static/css/style.css`, `templates/` |
 | SRS 3.4 5-second timeout and list-only fallback | `directory/geocoding.py`, `static/js/find.js` |
 
@@ -131,6 +132,7 @@ the app is deployed with HTTPS.
 several worker processes (needed for the NFR 1 load test):
 
 ```powershell
+$env:DJANGO_DEBUG = "False"
 uvicorn config.asgi:application --host 127.0.0.1 --port 8000 --workers 3
 ```
 
@@ -144,27 +146,73 @@ python manage.py test
 
 ## Load test (NFR 1)
 
-Results on the development laptop (4 CPU cores shared between the server and
-Locust; SQLite; 10,000 clinics; 100 users each searching every 1–3 s):
+Test setup: SQLite, 10,000 clinics, 100 users each searching every 1–3 s for 2 minutes.
+The laptop has 2 CPU cores (Intel i5-6300U) shared by the server, Locust and other programs.
 
 | Setup | Median | 95th percentile | Requests/s | Errors |
 |---|---|---|---|---|
 | `runserver`, first search version | 3,100 ms | 8,600 ms | 17 | 0 |
 | `runserver`, optimised search | 710 ms | 5,800 ms | 27 | 0 |
 | uvicorn, 3 workers, optimised search | 350 ms | 1,700 ms | 25 | 0 |
+| uvicorn, 3 workers, current search (best run) | 91 ms | 380 ms | 45 | 0 |
+| uvicorn, 3 workers, current search (worst run) | 140 ms | 1,300 ms | 42 | 0 |
 
-A single search takes 30–70 ms. Under load the median meets the 500 ms target,
-but the 95th percentile doesn't yet, because the laptop runs out of CPU. Still to do:
-re-run on PostgreSQL with Locust on a separate machine, or on the cloud deployment.
+After the changes below, 3 of 5 runs met the 500 ms target at the 95th percentile
+(380, 370 and 440 ms; the others were 510 and 1,300 ms; the runs used 3 or 4 workers
+while the last change was being made). The slow runs happened while
+another program on the laptop was using a lot of CPU. The server's own time, from the
+`Server-Timing` header, was 350 ms at the 95th percentile in the best run. The rest is
+the wait inside Locust, which shares the same 2 cores. To do: repeat the test against
+the cloud deployment, with Locust on this laptop.
 
-The results are capped at the 30 nearest therapists (3 clinics each), with a
-total count. This keeps responses small on 3G.
+What made the current search faster:
+- The list of verified therapists for each filter is saved for 30 seconds instead of
+  being rebuilt on every search. It is cleared at once when a licence, profile or
+  specialization changes (`directory/signals.py`, and the admin approve and reject actions).
+- The search reads each clinic link's number ID instead of the clinic's UUID, and
+  loads clinic details only for the results shown.
+- Results are built as plain dictionaries instead of with a DRF serializer.
+- uvicorn uses the faster `httptools` HTTP parser, and Locust uses `FastHttpUser`,
+  which needs less CPU on a shared laptop.
+
+A single search takes 15–60 ms (about 20 ms on average). Results are capped at the
+30 nearest therapists (3 clinics each), with a total count, which keeps responses small on 3G.
 
 ```powershell
 python manage.py seed --bulk 10000
-pip install locust
+pip install locust==2.47.0
 locust -f perf/locustfile.py --host http://127.0.0.1:8000 --users 100 --spawn-rate 10 --run-time 2m --headless
 ```
+
+Locust reports two rows: the time it measured, and `search (server time)`, the
+server's own time from the `Server-Timing` header that every response carries.
+
+## Accessibility (NFR 5)
+
+`python manage.py test config.tests_accessibility` checks against WCAG 2.1 AA:
+
+- Every main page, as a visitor, therapist, teacher and admin and with form errors:
+  page language and title, one `h1` and no skipped heading levels, image alt text,
+  a label for every form field, names for every button and link, unique ids,
+  working `aria-describedby` links to help and error text, no positive `tabindex`,
+  zoom not blocked, and `autocomplete` on name, email, phone and password fields.
+- Every colour pair in `style.css`, including the three play modes (soft, high
+  contrast, dim): text at least 4.5:1, control borders and focus outlines at least 3:1.
+
+Fixed during the audit:
+- Error and help text are now linked to their fields for screen readers.
+- The colour-mode radio buttons are grouped with a fieldset and legend.
+- The focus outline shows on the dark header and in the high-contrast and dim play modes.
+- Input and answer-button borders were darkened to reach 3:1.
+- The screening questions page and the play screen each have an `h1`.
+- On the screening questions, the arrow keys now only choose an answer; Enter or Next moves on.
+  Tapping an answer still moves on straight away.
+- On the play screen, focus moves to the new card instead of being lost.
+- Search results: only the summary line is announced, each "Call" link names the
+  therapist, and the radius slider is read as "10 km".
+
+Still to check by hand in a browser: a keyboard-only walk through each flow, and a
+screen reader pass (NVDA on Windows, TalkBack on Android).
 
 ## API
 
