@@ -56,6 +56,7 @@ class Flashcard(models.Model):
     class Source(models.TextChoices):
         BUILTIN = "BUILTIN", "Built-in"
         AI = "AI", "AI-generated"
+        WORDBANK = "WORDBANK", "Word bank"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     label = models.CharField(max_length=40, unique=True)
@@ -72,6 +73,22 @@ class Flashcard(models.Model):
 
     def __str__(self):
         return f"{self.symbol} {self.label} (level {self.difficulty})"
+
+
+class WordBankEntry(models.Model):
+    """A word the rule-based card service can turn into a new flashcard."""
+
+    label = models.CharField(max_length=40, unique=True)
+    emoji = models.CharField(max_length=16)
+    category = models.CharField(max_length=12, choices=Flashcard.Category.choices)
+    level = models.PositiveSmallIntegerField(validators=LEVEL_VALIDATORS)
+
+    class Meta:
+        ordering = ["level", "label"]
+        verbose_name_plural = "word bank entries"
+
+    def __str__(self):
+        return f"{self.emoji} {self.label} (level {self.level})"
 
 
 class LearningSession(models.Model):

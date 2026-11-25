@@ -57,7 +57,7 @@ def request_ai_cards(session):
         return  # already making cards: use the bank as it is
     _set_ai_status(session.pk, LearningSession.AIStatus.PENDING)
     session.ai_status = LearningSession.AIStatus.PENDING
-    if settings.AI_FLASHCARDS_BACKGROUND:
+    if settings.AI_FLASHCARDS_BACKGROUND and settings.AI_FLASHCARDS_PROVIDER != "wordbank":  # word bank is instant
         threading.Thread(target=_generate, args=(session.pk, session.start_level), daemon=True).start()
     else:
         _generate(session.pk, session.start_level)
@@ -80,7 +80,7 @@ def _generate(session_pk, level):
         _set_ai_status(session_pk, LearningSession.AIStatus.UNAVAILABLE)
     finally:
         _ai_busy.release()
-        if settings.AI_FLASHCARDS_BACKGROUND:
+        if settings.AI_FLASHCARDS_BACKGROUND and settings.AI_FLASHCARDS_PROVIDER != "wordbank":
             connections.close_all()  # close this thread's database connection
 
 
@@ -99,8 +99,8 @@ def _pick_card(session):
         pool = list(Flashcard.objects.filter(is_active=True, difficulty=level))
     if not pool:
         raise SessionError(f"No flashcards available at level {level}.")
-    # Show new AI cards more often, so they get seen
-    ai_cards = [c for c in pool if c.source == Flashcard.Source.AI]
+    # Show new cards (AI or word bank) more often, so they get seen
+    ai_cards = [c for c in pool if c.source != Flashcard.Source.BUILTIN]
     return random.choice(ai_cards if ai_cards and random.random() < 0.5 else pool)
 
 

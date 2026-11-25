@@ -84,6 +84,8 @@ class AIUnavailable(Exception):
 
 
 def is_configured():
+    if settings.AI_FLASHCARDS_PROVIDER == "wordbank":
+        return bool(settings.AI_FLASHCARDS_ENABLED)
     return bool(settings.AI_FLASHCARDS_ENABLED and settings.OLLAMA_URL)
 
 
@@ -195,6 +197,9 @@ def add_new_cards(*, level, count, max_requests=3):
 
     Raises AIUnavailable if the model can't be reached.
     """
+    if settings.AI_FLASHCARDS_PROVIDER == "wordbank":
+        from . import wordbank
+        return wordbank.add_new_cards(level=level, count=count)
     saved = []
     for _ in range(max_requests):
         if len(saved) >= count:
@@ -212,15 +217,15 @@ def add_new_cards(*, level, count, max_requests=3):
     return saved
 
 
-def save_cards(cards, level):
-    """Store validated cards as AI-sourced flashcards at this level. Returns how many were added."""
+def save_cards(cards, level, source=Flashcard.Source.AI):
+    """Store validated cards as new flashcards at this level. Returns how many were added."""
     added = 0
     for c in cards:
         try:
             with transaction.atomic():  # a clash rolls back only this card
                 Flashcard.objects.create(
                     label=c["label"], symbol=c["emoji"], category=c["category"],
-                    difficulty=level, source=Flashcard.Source.AI,
+                    difficulty=level, source=source,
                 )
             added += 1
         except IntegrityError:  # label taken meanwhile
