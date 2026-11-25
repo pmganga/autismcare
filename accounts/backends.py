@@ -1,7 +1,6 @@
-"""FR 1.2: email + password login that locks an account after 5 failed attempts.
+"""Email and password login. Locks the account after 5 wrong passwords (FR 1.2).
 
-This is the only authentication backend, so the rule applies everywhere:
-the REST API, the web login page and the Django admin.
+Used by the API, the web pages and the admin panel.
 """
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -19,7 +18,7 @@ class LockoutBackend(ModelBackend):
         try:
             user = User.objects.get(email__iexact=email)
         except User.DoesNotExist:
-            # Hash anyway so response time doesn't reveal whether the email exists.
+            # Check a password anyway, so the reply takes the same time for unknown emails.
             User().set_password(password)
             return None
 
@@ -31,7 +30,7 @@ class LockoutBackend(ModelBackend):
                 User.objects.filter(pk=user.pk).update(failed_login_attempts=0)
             return user
 
-        # Wrong password: count it atomically, lock at the limit.
+        # Wrong password: add one to the count and lock at the limit.
         User.objects.filter(pk=user.pk).update(failed_login_attempts=F("failed_login_attempts") + 1)
         user.refresh_from_db(fields=["failed_login_attempts"])
         if user.failed_login_attempts >= settings.MAX_FAILED_LOGIN_ATTEMPTS:

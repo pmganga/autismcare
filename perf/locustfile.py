@@ -1,14 +1,4 @@
-"""NFR 1 load test: search must answer in < 500 ms with 10,000 clinics and 100 users.
-
-1. python manage.py seed --bulk 10000
-2. python manage.py runserver
-3. pip install locust
-4. locust -f perf/locustfile.py --host http://127.0.0.1:8000 --users 100 --spawn-rate 10 --run-time 2m --headless
-   Look at the 95% column for /api/therapists/search/ in the summary. It should be under 500 ms.
-
-Note: Django's runserver is a development server. For numbers you report,
-run behind a production server (e.g. gunicorn on Linux).
-"""
+"""NFR 1 load test: search must answer in under 500 ms with 10,000 clinics and 100 users."""
 import random
 
 from locust import HttpUser, between, task

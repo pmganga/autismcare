@@ -1,8 +1,6 @@
-"""Address -> coordinates via the external mapping provider (SRS 3.3).
+"""Turns an address into coordinates with OpenStreetMap Nominatim (SRS 3.3).
 
-Uses OpenStreetMap Nominatim by default. Calls time out after 5 seconds
-(SRS 3.4); on any failure we return None and the caller falls back to
-coordinates entered by hand.
+Calls stop after 5 seconds (SRS 3.4). If it fails, the therapist types the coordinates instead.
 """
 import logging
 

@@ -14,7 +14,7 @@ from .models import GuidanceReport
 from .rescreen import rescreen_advice
 from .scoring import ScoredItem
 
-# Core PDF fonts only support Latin-1, so swap common typographic characters.
+# The built-in PDF fonts can't show curly quotes or long dashes, so swap them.
 _REPLACEMENTS = {"–": "-", "—": "-", "‘": "'", "’": "'", "“": '"', "”": '"', "…": "...", "·": "-", "•": "-"}
 
 
