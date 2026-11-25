@@ -7,14 +7,28 @@ credentials are set, a local SQLite file is used so the project still runs.
 import os
 from pathlib import Path
 
+import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-only-insecure-key-change-me")
+DEV_SECRET_KEY = "dev-only-insecure-key-change-me"
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", DEV_SECRET_KEY)
 DEBUG = os.getenv("DJANGO_DEBUG", "True") == "True"
 ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+CSRF_TRUSTED_ORIGINS = [o for o in os.getenv("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",") if o]
+
+# --- Production server (SRS 2.4; NFR 3 encryption in transit) ---------------
+if not DEBUG:
+    if SECRET_KEY == DEV_SECRET_KEY:
+        raise ImproperlyConfigured("Set DJANGO_SECRET_KEY when DJANGO_DEBUG is False.")
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")  # the host's proxy handles HTTPS
+    SECURE_SSL_REDIRECT = os.getenv("DJANGO_SSL_REDIRECT", "True") == "True"
+    SESSION_COOKIE_SECURE = SECURE_SSL_REDIRECT
+    CSRF_COOKIE_SECURE = SECURE_SSL_REDIRECT
+    SECURE_HSTS_SECONDS = 60 * 60 * 24 * 30 if SECURE_SSL_REDIRECT else 0
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -34,6 +48,8 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "config.middleware.ServerTimingMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",   # serves compressed CSS/JS (NFR 2)
+    "django.middleware.gzip.GZipMiddleware",        # compresses pages and API replies (NFR 2)
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -62,7 +78,11 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 
 # --- Database (SRS 2.4: PostgreSQL) -----------------------------------------
-if os.getenv("DB_NAME"):
+# DATABASE_URL is what hosts such as Render give; DB_* is for a local PostgreSQL.
+if os.getenv("DATABASE_URL"):
+    DATABASES = {"default": dj_database_url.parse(
+        os.environ["DATABASE_URL"], conn_max_age=600, conn_health_checks=True)}
+elif os.getenv("DB_NAME"):
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
@@ -71,6 +91,7 @@ if os.getenv("DB_NAME"):
             "PASSWORD": os.getenv("DB_PASSWORD", ""),
             "HOST": os.getenv("DB_HOST", "localhost"),
             "PORT": os.getenv("DB_PORT", "5432"),
+            "CONN_MAX_AGE": 60,  # reuse connections between requests
         }
     }
 else:
@@ -141,5 +162,12 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
+STATIC_ROOT = BASE_DIR / "staticfiles"  # filled by collectstatic on the server
+# On the server, file names carry a content hash so browsers can cache them for a year (NFR 2).
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage" if DEBUG
+                    else "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+}
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

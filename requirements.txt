@@ -6,4 +6,8 @@ requests==2.34.2
 fpdf2==2.9.0
 uvicorn==0.54.0
 httptools==0.9.0
+whitenoise==6.12.0
+Brotli==1.2.1
+dj-database-url==3.1.2
+gunicorn==27.0.1  # Linux server only (SRS 2.4)
 # Load testing only: pip install locust==2.47.0
