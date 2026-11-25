@@ -1,5 +1,7 @@
 # AutismCare
 
+Live site: https://autismcare-mjtb.onrender.com (free Render instance: the first visit after a quiet spell can take up to a minute while it wakes)
+
 | Increment | Weeks | Status |
 |---|---|---|
 | 1. Therapist directory | 3–5 | Built |
@@ -81,6 +83,8 @@ managed PostgreSQL host with AES-256 storage encryption turned on.
 | FR 3.2 Filters (specialization, insurance, consultation mode) | `directory/search.py` |
 | FR 3.3 Therapist profile management and licence upload | `directory/views.py`, `directory/api_views.py` |
 | Admin licence verification | `directory/admin.py` (approve/reject actions) |
+| Licence documents kept private in the database, so they survive server restarts | `directory/storage.py` |
+| Admin "Monitor System Performance" (response times, database health, errors, usage) | `config/monitoring.py`, `/admin/performance/` |
 | NFR 1 Search under 500 ms at 10k clinics / 100 users | `directory/search.py` (bounding box, indexed lat/lng, saved list of verified therapists); `perf/locustfile.py` |
 | NFR 2 Pages under 2.5 MB, fast on 3G | `config/tests_page_weight.py`; see [Page size on 3G](#page-size-on-3g-nfr-2) |
 | NFR 5 Accessibility (WCAG 2.1 AA) | `config/tests_accessibility.py`; see [Accessibility](#accessibility-nfr-5) |

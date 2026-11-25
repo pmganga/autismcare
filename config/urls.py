@@ -1,7 +1,10 @@
 from django.contrib import admin
 from django.urls import include, path
 
+from .monitoring import performance
+
 urlpatterns = [
+    path("admin/performance/", performance, name="admin-performance"),
     path("admin/", admin.site.urls),
     path("api/auth/", include("accounts.api_urls")),
     path("api/", include("directory.api_urls")),

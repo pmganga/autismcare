@@ -225,6 +225,26 @@ class AdminVerificationTests(TestCase):
         found = search_therapists(SearchParams(lat=NAIROBI[0], lng=NAIROBI[1], radius_km=5))
         self.assertEqual([t.pk for t in found], [self.t.pk])
 
+    def test_licence_file_kept_in_database(self):
+        from .models import StoredFile
+        from .services import submit_license
+        f = SimpleUploadedFile("lic.pdf", b"%PDF-1.4 licence", content_type="application/pdf")
+        lic = submit_license(self.t, "KE-9", f)
+        stored = StoredFile.objects.get(name=lic.document.name)
+        self.assertEqual(bytes(stored.content), b"%PDF-1.4 licence")
+        self.client.force_login(self.admin)
+        r = self.client.get(reverse("license-document", args=[lic.pk]))
+        self.assertEqual(b"".join(r.streaming_content), b"%PDF-1.4 licence")
+
+    def test_performance_page_is_staff_only(self):
+        self.client.force_login(self.t.user)
+        self.assertEqual(self.client.get(reverse("admin-performance")).status_code, 302)
+        self.client.force_login(self.admin)
+        self.client.get(reverse("find"))
+        r = self.client.get(reverse("admin-performance"))
+        self.assertContains(r, "System performance")
+        self.assertContains(r, "Database reply time")
+
     def test_license_document_is_staff_only(self):
         url = reverse("license-document", args=[self.t.license.pk])
         self.client.force_login(self.t.user)
