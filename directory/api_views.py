@@ -13,8 +13,8 @@ from .serializers import (
     ClinicSerializer,
     LicenseSerializer,
     PublicTherapistSerializer,
-    SearchResultSerializer,
     TherapistProfileSerializer,
+    search_result,
 )
 from .services import submit_license
 
@@ -96,7 +96,7 @@ class TherapistSearchView(APIView):
                 "count": len(results),
                 "total": results.total,
                 "radius_km": params.radius_km,
-                "results": SearchResultSerializer(results, many=True).data,
+                "results": [search_result(t) for t in results],
             }
         )
 
