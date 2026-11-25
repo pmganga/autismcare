@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <h1>Find verified autism support near you</h1>
+  <p>Search for licensed autism therapists and clinics within 5 to 50 km of where you are.</p>
+  <a class="btn" href="{% url 'find' %}">Find a therapist</a>
+</section>
+<section class="grid-3">
+  <div class="card">
+    <h2>Screening</h2>
+    <p class="muted">An early developmental screening questionnaire. Coming in the next increment.</p>
+  </div>
+  <div class="card">
+    <h2>Therapist directory</h2>
+    <p>Every therapist listed here has had their licence checked by an administrator.</p>
+    <a href="{% url 'find' %}">Search the directory</a>
+  </div>
+  <div class="card">
+    <h2>Teaching assistant</h2>
+    <p class="muted">Adaptive visual learning activities for classrooms. Coming in a later increment.</p>
+  </div>
+</section>
+<section class="card">
+  <h2>Are you a therapist?</h2>
+  <p>List your practice so families in your area can find you.</p>
+  <a class="btn btn-secondary" href="{% url 'register' %}">Register your practice</a>
+</section>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}{% if clinic %}Edit clinic{% else %}Add a clinic{% endif %} · AutismCare{% endblock %}
+{% block content %}
+<section class="card narrow">
+  <h1>{% if clinic %}Edit {{ clinic.name }}{% else %}Add a clinic{% endif %}</h1>
+  <p>We use the address to place your clinic on the map. If it can't be found, enter the latitude and longitude yourself. You can copy them from any map app.</p>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% include "includes/form.html" %}
+    <div class="row">
+      <button class="btn" type="submit">Save clinic</button>
+      <a class="btn btn-quiet" href="{% url 'dashboard' %}">Cancel</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

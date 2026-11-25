@@ -1,0 +1,46 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}AutismCare{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="{% url 'home' %}">AutismCare</a>
+    <nav aria-label="Main">
+      <ul class="nav">
+        <li><span class="nav-link is-disabled" aria-disabled="true" title="Coming in a later increment">Screening</span></li>
+        <li><a class="nav-link {% if request.resolver_match.url_name == 'find' %}is-active{% endif %}" href="{% url 'find' %}">Find a therapist</a></li>
+        <li><span class="nav-link is-disabled" aria-disabled="true" title="Coming in a later increment">Teaching assistant</span></li>
+      </ul>
+    </nav>
+    <div class="account">
+      {% if user.is_authenticated %}
+        {% if user.is_staff %}<a class="nav-link" href="{% url 'admin:index' %}">Admin</a>{% endif %}
+        {% if user.therapist_profile %}<a class="nav-link" href="{% url 'dashboard' %}">My profile</a>{% endif %}
+        <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn btn-quiet" type="submit">Log out</button></form>
+      {% else %}
+        <a class="nav-link" href="{% url 'login' %}">Therapist login</a>
+      {% endif %}
+    </div>
+  </header>
+
+  <main id="main" class="container">
+    {% if messages %}
+      <ul class="messages" role="status">
+        {% for m in messages %}<li class="badge badge-{{ m.tags }}">{{ m }}</li>{% endfor %}
+      </ul>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <p>AutismCare connects families with verified autism therapists. It does not provide a medical diagnosis.</p>
+  </footer>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
