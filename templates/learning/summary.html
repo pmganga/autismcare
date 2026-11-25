@@ -10,9 +10,9 @@
     <div class="stat"><span class="stat-value">{{ session.start_level }} → {{ session.end_level|default:session.current_level }}</span><span class="help">difficulty level</span></div>
     <div class="stat"><span class="stat-value">{{ avg_seconds|default:"–" }}{% if avg_seconds %} s{% endif %}</span><span class="help">average answer time</span></div>
   </div>
-  {% if session.ai_status == "used" %}<p class="help">The AI service added {{ session.ai_cards_added }} new card{{ session.ai_cards_added|pluralize }} for this session.</p>
-  {% elif session.ai_status == "pending" %}<p class="help">The AI service is still making new cards. They will be ready for the next session.</p>
-  {% elif session.ai_status == "unavailable" %}<p class="help">The AI service wasn't available, so built-in cards were used.</p>{% endif %}
+  {% if session.ai_status == "used" %}<p class="help">The card service added {{ session.ai_cards_added }} new card{{ session.ai_cards_added|pluralize }} for this session.</p>
+  {% elif session.ai_status == "pending" %}<p class="help">The card service is still making new cards. They will be ready for the next session.</p>
+  {% elif session.ai_status == "unavailable" %}<p class="help">The card service wasn't available, so built-in cards were used.</p>{% endif %}
 </section>
 
 <section class="card">

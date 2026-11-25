@@ -8,7 +8,7 @@
     {% csrf_token %}
     {% include "includes/form.html" %}
     <p class="help">
-      {% if ai_configured %}The session starts straight away with the picture card bank. The AI service also makes new cards for this level in the background; they join the bank when ready.
+      {% if ai_configured %}The session starts straight away with the picture card bank. The card service also adds new cards for this level; they join the bank when ready.
       {% else %}Built-in picture cards will be used.{% endif %}
     </p>
     <div class="row wrap">

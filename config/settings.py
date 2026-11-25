@@ -145,6 +145,8 @@ AI_FLASHCARDS_MODEL = os.getenv("AI_FLASHCARDS_MODEL", "qwen3.5:2b")
 AI_FLASHCARDS_ENABLED = os.getenv("AI_FLASHCARDS_ENABLED", "True") == "True"
 AI_FLASHCARDS_TIMEOUT_SECONDS = int(os.getenv("AI_FLASHCARDS_TIMEOUT_SECONDS", "120"))  # for the background job
 AI_FLASHCARDS_BACKGROUND = True  # False runs it straight away (used in tests)
+# "ollama" (local AI model) or "wordbank" (rule-based cards from the database, for the cloud server)
+AI_FLASHCARDS_PROVIDER = os.getenv("AI_FLASHCARDS_PROVIDER", "ollama")
 
 # --- Search limits (FR 3.1) --------------------------------------------------
 SEARCH_MIN_RADIUS_KM = 5
