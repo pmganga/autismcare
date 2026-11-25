@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Register as a teacher · AutismCare{% endblock %}
+{% block content %}
+<section class="card narrow">
+  <h1>Register as a teacher</h1>
+  <p>Use the AI teaching assistant with the learners in your class. Learners are added by nickname only, with no personal details.</p>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% include "includes/form.html" %}
+    <button class="btn" type="submit">Create teacher account</button>
+  </form>
+  <p>Already registered? <a href="{% url 'login' %}">Log in</a></p>
+</section>
+{% endblock %}

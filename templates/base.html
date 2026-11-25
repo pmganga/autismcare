@@ -15,16 +15,17 @@
       <ul class="nav">
         <li><a class="nav-link {% if request.resolver_match.url_name|slice:':9' == 'screening' %}is-active{% endif %}" href="{% url 'screening' %}">Screening</a></li>
         <li><a class="nav-link {% if request.resolver_match.url_name == 'find' %}is-active{% endif %}" href="{% url 'find' %}">Find a therapist</a></li>
-        <li><span class="nav-link is-disabled" aria-disabled="true" title="Coming in a later increment">Teaching assistant</span></li>
+        <li><a class="nav-link {% if request.resolver_match.url_name|slice:':5' == 'teach' %}is-active{% endif %}" href="{% url 'teach' %}">Teaching assistant</a></li>
       </ul>
     </nav>
     <div class="account">
       {% if user.is_authenticated %}
         {% if user.is_staff %}<a class="nav-link" href="{% url 'admin:index' %}">Admin</a>{% endif %}
         {% if user.therapist_profile %}<a class="nav-link" href="{% url 'dashboard' %}">My profile</a>{% endif %}
+        {% if user.teacher_profile %}<a class="nav-link" href="{% url 'teach' %}">My classroom</a>{% endif %}
         <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn btn-quiet" type="submit">Log out</button></form>
       {% else %}
-        <a class="nav-link" href="{% url 'login' %}">Therapist login</a>
+        <a class="nav-link" href="{% url 'login' %}">Log in</a>
       {% endif %}
     </div>
   </header>

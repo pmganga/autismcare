@@ -84,6 +84,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("Demo therapists already exist. Use --reset to recreate them."))
         else:
             self._demo_therapists(User, rng, specs, insurers)
+            self._demo_teacher(User)
 
         if bulk:
             self._bulk(User, rng, bulk, specs, insurers)
@@ -133,6 +134,20 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(
             f"Created 24 demo therapists (16 approved, 4 pending, 4 rejected). "
             f"Login: therapist01@{DEMO_DOMAIN} / {DEMO_PASSWORD}"
+        ))
+
+    @transaction.atomic
+    def _demo_teacher(self, User):
+        from learning.models import Learner, TeacherProfile
+
+        user = User.objects.create_user(
+            email=f"teacher01@{DEMO_DOMAIN}", password=DEMO_PASSWORD, role=User.Role.TEACHER
+        )
+        teacher = TeacherProfile.objects.create(user=user, full_name="Demo Teacher", school_name="Demo Special School")
+        for nickname, level in (("Amani", 1), ("Baraka", 2), ("Zawadi", 3)):
+            Learner.objects.create(teacher=teacher, nickname=nickname, current_level=level)
+        self.stdout.write(self.style.SUCCESS(
+            f"Created demo teacher with 3 learners. Login: teacher01@{DEMO_DOMAIN} / {DEMO_PASSWORD}"
         ))
 
     @transaction.atomic

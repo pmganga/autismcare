@@ -1,0 +1,52 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Learning session · AutismCare</title>
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body class="play mode-{{ session.sensory_mode }}">
+  {% csrf_token %}
+  <header class="play-bar">
+    <span class="play-meta"><strong>{{ session.learner.nickname }}</strong> · <span id="progress">Ready</span> · Level <span id="level">{{ session.current_level }}</span></span>
+    <button type="button" id="end-session" class="btn btn-quiet">End session</button>
+  </header>
+
+  <main class="play-main">
+    <section id="start-screen" class="play-center">
+      <p class="play-prompt">Ready, {{ session.learner.nickname }}?</p>
+      <button type="button" id="start" class="btn play-big">Start</button>
+    </section>
+
+    <section id="card-screen" class="play-center" hidden>
+      <div class="flashcard" aria-live="polite">
+        <img id="card-image" alt="" hidden>
+        <span id="card-symbol" class="flashcard-symbol" role="img" aria-label="Picture to name"></span>
+      </div>
+      <p class="play-prompt">What is this?</p>
+      <div id="choices" class="choices"></div>
+      <p id="feedback" class="play-feedback" role="status"></p>
+      <button type="button" id="next" class="btn play-big" hidden>Next</button>
+    </section>
+
+    <section id="done-screen" class="play-center" hidden>
+      <p class="play-prompt">All done. Well done, {{ session.learner.nickname }}!</p>
+      <a id="summary-link" class="btn play-big" href="{% url 'teach-summary' session.pk %}">See summary</a>
+    </section>
+
+    <p id="play-error" class="badge badge-error" role="alert" hidden></p>
+  </main>
+
+  <script>
+    window.PLAY = {
+      nextUrl: "{% url 'api-learning-next' session.pk %}",
+      answerUrl: "{% url 'api-learning-answer' session.pk %}",
+      endUrl: "{% url 'api-learning-end' session.pk %}",
+      summaryUrl: "{% url 'teach-summary' session.pk %}",
+      audio: {{ session.audio_enabled|yesno:"true,false" }},
+    };
+  </script>
+  <script src="{% static 'js/play.js' %}"></script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Start a session · AutismCare{% endblock %}
+{% block content %}
+<section class="card narrow">
+  <h1>Start a session with {{ learner.nickname }}</h1>
+  <p>{{ learner.nickname }} is on <strong>level {{ learner.current_level }} of 5</strong>. After every 3 cards, the level goes up if all 3 were correct and down if 1 or fewer were.</p>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% include "includes/form.html" %}
+    <p class="help">
+      {% if ai_configured %}The session starts straight away with the picture card bank. The AI service also makes new cards for this level in the background; they join the bank when ready.
+      {% else %}Built-in picture cards will be used.{% endif %}
+    </p>
+    <div class="row wrap">
+      <button class="btn" type="submit">Start session</button>
+      <a class="btn btn-quiet" href="{% url 'teach' %}">Cancel</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

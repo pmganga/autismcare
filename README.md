@@ -5,7 +5,40 @@
 | 1. Therapist directory | 3–5 | Built |
 | 2a. Screening: questionnaire and risk scoring | 6 | Built |
 | 2b. Screening: PDF report and referral flow | 7 | Built |
-| 3. AI teaching assistant | 8–9 | Not started |
+| 3. AI teaching assistant | 8–9 | Built |
+
+## AI teaching assistant (Weeks 8–9)
+
+| Requirement / diagram | Where it's built |
+|---|---|
+| Teacher registers, logs in, adds learners by nickname only | `learning/views.py` (`/teach/register/`, `/teach/`) |
+| Configure sensory settings: audio on/off, colour mode (soft, high contrast, dim), session length | `learning/forms.py` `SessionSettingsForm` |
+| FR 4.1 High-contrast picture flashcards with simple word choices, one per screen, no animation | `templates/learning/play.html`, `static/js/play.js` |
+| FR 4.2 Adaptive level: after every 3 cards, 3/3 correct = up, ≤1 = down, else same (levels 1–5) | `learning/engine.py` `evaluate()` |
+| Calm audio cue (spoken word + soft chime) for correct; gentle visual hint for wrong | `static/js/play.js` |
+| AI/NLP service generates new cards for the learner's level (local Qwen model via Ollama), in the background with built-in fallback | `learning/ai.py`, `learning/services.py` |
+| Progress summary: accuracy, level change, response times, card by card | `templates/learning/summary.html` |
+
+**AI setup (optional).** New cards are made by **Qwen 3.5 (2B)**, an open-source
+model that runs on the same computer through [Ollama](https://ollama.com). No
+learner data leaves the machine and there is no per-request cost.
+
+```powershell
+ollama pull qwen3.5:2b                         # once (2.7 GB)
+python manage.py generate_flashcards           # optional: fill the bank before a class or demo
+```
+
+- **Background generation.** On a laptop CPU the model takes 15–60 seconds per
+  request, so it never holds up a learner. A session starts at once with the
+  card bank, the model works in the background, and its cards join the bank
+  when ready (status shown on the session summary).
+- **Picture check.** Every AI card is checked before use: a simple lowercase word,
+  a real emoji whose official Unicode name contains that word (so 🚌 "bus" passes,
+  💧 "water" is rejected), an allowed category, a not-child-safe word list, and
+  no duplicates.
+- **Fallback.** If Ollama isn't running (or `OLLAMA_URL` is empty, as on the
+  cloud deployment), sessions use the 60 built-in cards (12 per level). The
+  module always works.
 
 ## Screening (Week 6)
 
@@ -62,6 +95,7 @@ Then open:
 - http://127.0.0.1:8000/ for the home page
 - http://127.0.0.1:8000/find/ to search for a therapist
 - http://127.0.0.1:8000/login/ for therapist login (demo account: `therapist01@demo.autismcare.test` / `DemoTherapist2026!`)
+- http://127.0.0.1:8000/teach/ for the teaching assistant (demo teacher: `teacher01@demo.autismcare.test` / `DemoTherapist2026!`)
 - http://127.0.0.1:8000/admin/ for the admin panel (go to *Licence verifications*, select rows, then Approve)
 
 ## Switch to PostgreSQL

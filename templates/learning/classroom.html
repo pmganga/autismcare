@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}My classroom · AutismCare{% endblock %}
+{% block content %}
+<h1>My classroom</h1>
+<p class="help">{{ teacher.full_name }} · {{ teacher.school_name }}</p>
+
+{% if not ai_configured %}
+  <p class="badge badge-info">The AI card service isn't configured on this server, so sessions use the built-in set of 60 picture cards.</p>
+{% endif %}
+
+<section class="card">
+  <h2>Learners</h2>
+  {% if learners %}
+    <ul class="list">
+      {% for l in learners %}
+        <li class="list-item">
+          <div>
+            <strong>{{ l.nickname }}</strong><br>
+            <span class="help">Level {{ l.current_level }} of 5 · {{ l.session_count }} session{{ l.session_count|pluralize }}{% if l.last_session %} · last {{ l.last_session|date:"j M" }}{% endif %}</span>
+          </div>
+          <div class="row wrap">
+            <a class="btn" href="{% url 'teach-start' l.pk %}">Start session</a>
+            <form method="post" action="{% url 'teach-learner-remove' l.pk %}">{% csrf_token %}
+              <button class="btn btn-quiet" type="submit" aria-label="Remove {{ l.nickname }}">Remove</button>
+            </form>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="muted">No learners yet. Add one below.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>Add a learner</h2>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% include "includes/form.html" %}
+    <button class="btn btn-secondary" type="submit">Add learner</button>
+  </form>
+</section>
+
+{% if recent %}
+<section class="card">
+  <h2>Recent sessions</h2>
+  <ul class="list">
+    {% for s in recent %}
+      <li class="list-item">
+        <div>
+          <strong>{{ s.learner.nickname }}</strong> · {{ s.started_at|date:"j M, H:i" }}<br>
+          <span class="help">{{ s.correct_count }} of {{ s.total_attempts }} correct{% if s.accuracy_percent is not None %} ({{ s.accuracy_percent }}%){% endif %} · level {{ s.start_level }} → {{ s.end_level }}</span>
+        </div>
+        <a class="btn btn-quiet" href="{% url 'teach-summary' s.pk %}">Summary</a>
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endblock %}
