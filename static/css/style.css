@@ -1,12 +1,14 @@
 /* AutismCare: low-saturation, low-stimulation palette (SRS 2.5, 3.1).
-   All text colours meet WCAG 2.1 AA contrast on their backgrounds.
+   Meets WCAG 2.1 AA contrast (NFR 5): text 4.5:1, control borders and focus outlines 3:1.
+   The colour pairs are checked by config/tests_accessibility.py.
    No animations or transitions. */
 :root {
   --bg: #f6f5f1;
   --surface: #ffffff;
   --text: #26323a;
   --muted: #56636b;
-  --border: #cfd6d4;
+  --border: #cfd6d4;         /* decorative lines only */
+  --control-border: #78848a; /* input and button outlines */
   --primary: #3d6b6a;        /* 5.9:1 with white */
   --primary-dark: #2f5453;
   --secondary-bg: #e6eeed;
@@ -38,7 +40,8 @@ a { color: var(--primary-dark); }
 
 .skip-link { position: absolute; left: -9999px; }
 .skip-link:focus { left: 1rem; top: 1rem; background: var(--surface); padding: 0.5rem 1rem; z-index: 1000; }
-.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
+                   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* ---------- header / nav (high-contrast, one click to each module) ---------- */
 .site-header {
@@ -55,7 +58,8 @@ a { color: var(--primary-dark); }
 .nav-link.is-disabled { color: #b9c3c8; cursor: not-allowed; }
 .account { margin-left: auto; display: flex; align-items: center; gap: 0.25rem; }
 .account form { margin: 0; }
-.site-header .btn-quiet { color: #fff; border-color: #8c999f; background: transparent; }
+.site-header .btn-quiet { color: #fff; border-color: var(--control-border); background: transparent; }
+.site-header :focus-visible { outline-color: #fff; }  /* the dark blue outline doesn't show on the dark header */
 
 .container { max-width: 960px; margin: 0 auto; padding: 1rem; }
 .site-footer { max-width: 960px; margin: 2rem auto; padding: 0 1rem; color: var(--muted); font-size: 0.95rem; }
@@ -74,9 +78,9 @@ a { color: var(--primary-dark); }
 .field { margin-bottom: 1rem; }
 label, legend { font-weight: 600; display: block; margin-bottom: 0.25rem; }
 fieldset { border: 0; padding: 0; margin: 0 0 1.25rem; }
-input[type=text], input[type=email], input[type=password], input[type=number], input[type=file], select, textarea {
+input[type=text], input[type=email], input[type=tel], input[type=password], input[type=number], input[type=file], select, textarea {
   width: 100%; min-height: 48px; padding: 0.6rem 0.75rem; font: inherit; color: var(--text);
-  background: var(--surface); border: 1px solid #8c999f; border-radius: var(--radius);
+  background: var(--surface); border: 1px solid var(--control-border); border-radius: var(--radius);
 }
 .search-form input[type=text] { flex: 1 1 220px; width: auto; }
 input[type=range] { width: 100%; min-height: 48px; accent-color: var(--primary); }
@@ -166,14 +170,14 @@ input[type=range] { width: 100%; min-height: 48px; accent-color: var(--primary);
 .data-table th, .data-table td { text-align: left; padding: 0.5rem; border-bottom: 1px solid var(--border); }
 
 /* ---------- child-facing play screen (FR 4.1): low stimulation, no motion ---------- */
-.play { --card-bg: #ffffff; --card-fg: #1b2328; --choice-bg: #e6eeed; --choice-fg: #1f3d3c; --choice-border: #8c999f;
+.play { --card-bg: #ffffff; --card-fg: #1b2328; --choice-bg: #e6eeed; --choice-fg: #1f3d3c; --choice-border: #78848a;
         --ok: #2f5d3a; --ok-bg: #e3efe5; --hint: #2c4a66; --hint-bg: #e4ebf2; min-height: 100vh; }
 .play.mode-contrast { --bg: #000000; --text: #ffffff; --muted: #e6e6e6; --card-bg: #000000; --card-fg: #ffffff;
         --choice-bg: #000000; --choice-fg: #ffff00; --choice-border: #ffff00; --ok: #00ff7f; --ok-bg: #000000;
-        --hint: #7fd4ff; --hint-bg: #000000; --border: #ffffff; }
+        --hint: #7fd4ff; --hint-bg: #000000; --border: #ffffff; --focus: #ffffff; }
 .play.mode-dim { --bg: #1d2326; --text: #d7dde0; --muted: #a9b4ba; --card-bg: #262e32; --card-fg: #e9eef0;
-        --choice-bg: #2c3539; --choice-fg: #d7e6e4; --choice-border: #5d6b71; --ok: #9fd3ad; --ok-bg: #22352a;
-        --hint: #a9c7e3; --hint-bg: #22303d; --border: #3b464b; }
+        --choice-bg: #2c3539; --choice-fg: #d7e6e4; --choice-border: #707f86; --ok: #9fd3ad; --ok-bg: #22352a;
+        --hint: #a9c7e3; --hint-bg: #22303d; --border: #3b464b; --focus: #a9c7e3; }
 .play-bar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.5rem 1rem;
             border-bottom: 1px solid var(--border); color: var(--muted); }
 .play-bar .btn-quiet { color: var(--text); }

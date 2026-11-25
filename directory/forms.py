@@ -11,6 +11,8 @@ class TherapistProfileForm(forms.ModelForm):
         fields = ["full_name", "phone", "bio", "specializations", "offers_in_person",
                   "offers_virtual", "payment_methods"]
         widgets = {
+            "full_name": forms.TextInput(attrs={"autocomplete": "name"}),
+            "phone": forms.TextInput(attrs={"autocomplete": "tel", "type": "tel"}),
             "specializations": forms.CheckboxSelectMultiple,
             "bio": forms.Textarea(attrs={"rows": 4}),
         }

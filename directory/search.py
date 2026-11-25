@@ -9,11 +9,13 @@ from dataclasses import dataclass
 from math import acos, cos, radians, sin
 
 from django.conf import settings
+from django.core.cache import cache
 
 from .models import Clinic, LicenseVerification, Therapist
 
 EARTH_RADIUS_KM = 6371.0
 KM_PER_DEGREE_LAT = 111.0
+CACHE_VERSION_KEY = "search-version"
 
 
 class SearchError(ValueError):
@@ -81,6 +83,38 @@ class SearchResults(list):
     total = 0
 
 
+def clear_search_cache():
+    """Forget the saved therapist lists after a licence, profile or specialization changes."""
+    try:
+        cache.incr(CACHE_VERSION_KEY)
+    except ValueError:  # no version saved yet
+        cache.set(CACHE_VERSION_KEY, 1, None)
+
+
+def eligible_therapist_ids(p: SearchParams):
+    """IDs of verified therapists that match the filters.
+
+    They change rarely, so the list is saved for a short time instead of being rebuilt on every search.
+    """
+    version = cache.get(CACHE_VERSION_KEY, 0)
+    key = f"search-eligible:{version}:{p.specialization or ''}:{p.mode or ''}".lower().replace(" ", "_")
+    ids = cache.get(key)
+    if ids is not None:
+        return ids
+
+    # A separate query: joined with the clinic query below, SQLite was very slow.
+    eligible = Therapist.objects.filter(license__status=LicenseVerification.Status.APPROVED)
+    if p.specialization:
+        eligible = eligible.filter(specializations__name__iexact=p.specialization)
+    if p.mode == "in_person":
+        eligible = eligible.filter(offers_in_person=True)
+    elif p.mode == "virtual":
+        eligible = eligible.filter(offers_virtual=True)
+    ids = frozenset(eligible.values_list("id", flat=True))
+    cache.set(key, ids, settings.SEARCH_CACHE_SECONDS)
+    return ids
+
+
 def search_therapists(p: SearchParams, limit=None):
     """Return verified therapists with a clinic in range, nearest first.
 
@@ -90,40 +124,29 @@ def search_therapists(p: SearchParams, limit=None):
     per_result = settings.SEARCH_MAX_CLINICS_PER_RESULT
     lat_range, lng_range = _bounding_box(p)
 
-    # 1. Verified therapists that match the filters (IDs only).
-    # A separate query: joined with step 2, SQLite was very slow.
-    eligible = Therapist.objects.filter(license__status=LicenseVerification.Status.APPROVED)
-    if p.specialization:
-        eligible = eligible.filter(specializations__name__iexact=p.specialization)
-    if p.mode == "in_person":
-        eligible = eligible.filter(offers_in_person=True)
-    elif p.mode == "virtual":
-        eligible = eligible.filter(offers_virtual=True)
-    eligible_ids = set(eligible.values_list("id", flat=True))
+    # 1. Verified therapists that match the filters
+    eligible_ids = eligible_therapist_ids(p)
 
     results = SearchResults()
     if not eligible_ids:
         return results
 
-    # 2. Clinics inside the square, with each clinic's distance worked out once.
-    links = Therapist.clinics.through.objects.filter(
-        clinic__latitude__range=lat_range, clinic__longitude__range=lng_range
-    )
+    # 2. Therapist-clinic links inside the square, then the real distance of each.
+    # The link's own number ID is read instead of the clinic's UUID, which is slower to load.
+    Link = Therapist.clinics.through
+    links = Link.objects.filter(clinic__latitude__range=lat_range, clinic__longitude__range=lng_range)
     if p.insurance:
         links = links.filter(clinic__insurance_providers__name__iexact=p.insurance)
 
-    clinic_km = {}
-    in_range = defaultdict(list)      # therapist_id -> [(km, clinic_id)]
-    for t_id, c_id, lat, lng in links.values_list(
-        "therapist_id", "clinic_id", "clinic__latitude", "clinic__longitude"
+    in_range = defaultdict(list)      # therapist_id -> [(km, link_id)]
+    for link_id, t_id, lat, lng in links.values_list(
+        "id", "therapist_id", "clinic__latitude", "clinic__longitude"
     ):
         if t_id not in eligible_ids:
             continue
-        km = clinic_km.get(c_id)
-        if km is None:
-            km = clinic_km[c_id] = distance_km(p.lat, p.lng, lat, lng)
+        km = distance_km(p.lat, p.lng, lat, lng)
         if km <= p.radius_km:
-            in_range[t_id].append((km, c_id))
+            in_range[t_id].append((km, link_id))
     nearest = {t: min(pairs)[0] for t, pairs in in_range.items()}
     top = sorted(nearest, key=lambda t: (nearest[t], t))[:limit]
     results.total = len(nearest)
@@ -132,16 +155,20 @@ def search_therapists(p: SearchParams, limit=None):
 
     # 3. Display data for the top results only
     shown = {t: sorted(in_range[t])[:per_result] for t in top}
+    clinic_of_link = dict(
+        Link.objects.filter(pk__in={link for pairs in shown.values() for _, link in pairs})
+        .values_list("id", "clinic_id")
+    )
     clinics = (
-        Clinic.objects.filter(pk__in={c for pairs in shown.values() for _, c in pairs})
+        Clinic.objects.filter(pk__in=set(clinic_of_link.values()))
         .prefetch_related("insurance_providers")
         .in_bulk()
     )
     for t in Therapist.objects.filter(pk__in=top).prefetch_related("specializations"):
         t.distance_km = nearest[t.pk]
         t.nearby_clinics = []
-        for km, c_id in shown[t.pk]:
-            clinic = clinics[c_id]
+        for km, link_id in shown[t.pk]:
+            clinic = clinics[clinic_of_link[link_id]]
             clinic.distance_km = km
             t.nearby_clinics.append(clinic)
         results.append(t)

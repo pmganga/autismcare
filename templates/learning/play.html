@@ -14,6 +14,7 @@
   </header>
 
   <main class="play-main">
+    <h1 class="visually-hidden">Learning session with {{ session.learner.nickname }}</h1>
     <section id="start-screen" class="play-center">
       <p class="play-prompt">Ready, {{ session.learner.nickname }}?</p>
       <button type="button" id="start" class="btn play-big">Start</button>
@@ -24,7 +25,7 @@
         <img id="card-image" alt="" hidden>
         <span id="card-symbol" class="flashcard-symbol" role="img" aria-label="Picture to name"></span>
       </div>
-      <p class="play-prompt">What is this?</p>
+      <p id="card-prompt" class="play-prompt" tabindex="-1">What is this?</p>
       <div id="choices" class="choices"></div>
       <p id="feedback" class="play-feedback" role="status"></p>
       <button type="button" id="next" class="btn play-big" hidden>Next</button>

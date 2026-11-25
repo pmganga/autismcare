@@ -77,34 +77,33 @@ class LicenseSerializer(serializers.ModelSerializer):
         return f
 
 
-class NearbyClinicSerializer(serializers.ModelSerializer):
-    distance_km = serializers.SerializerMethodField()
-    insurance_providers = serializers.SlugRelatedField(many=True, slug_field="name", read_only=True)
-
-    class Meta:
-        model = Clinic
-        fields = ["id", "name", "address", "latitude", "longitude", "operating_hours",
-                  "insurance_providers", "distance_km"]
-
-    def get_distance_km(self, obj):
-        return round(obj.distance_km, 1)
-
-
-class SearchResultSerializer(serializers.ModelSerializer):
+# Search results are built as plain dictionaries: on the busiest endpoint
+# this is several times faster than a DRF serializer (NFR 1).
+def search_result(therapist):
     """Public view of a verified therapist in search results."""
+    return {
+        "id": therapist.id,
+        "full_name": therapist.full_name,
+        "phone": therapist.phone,
+        "specializations": [s.name for s in therapist.specializations.all()],
+        "consultation_modes": therapist.consultation_modes,
+        "payment_methods": therapist.payment_methods,
+        "distance_km": round(therapist.distance_km, 1),
+        "clinics": [nearby_clinic(c) for c in therapist.nearby_clinics],
+    }
 
-    distance_km = serializers.SerializerMethodField()
-    specializations = serializers.SlugRelatedField(many=True, slug_field="name", read_only=True)
-    consultation_modes = serializers.ListField(read_only=True)
-    clinics = NearbyClinicSerializer(source="nearby_clinics", many=True, read_only=True)
 
-    class Meta:
-        model = Therapist
-        fields = ["id", "full_name", "phone", "specializations", "consultation_modes",
-                  "payment_methods", "distance_km", "clinics"]
-
-    def get_distance_km(self, obj):
-        return round(obj.distance_km, 1)
+def nearby_clinic(clinic):
+    return {
+        "id": str(clinic.id),
+        "name": clinic.name,
+        "address": clinic.address,
+        "latitude": clinic.latitude,
+        "longitude": clinic.longitude,
+        "operating_hours": clinic.operating_hours,
+        "insurance_providers": [i.name for i in clinic.insurance_providers.all()],
+        "distance_km": round(clinic.distance_km, 1),
+    }
 
 
 class PublicTherapistSerializer(serializers.ModelSerializer):

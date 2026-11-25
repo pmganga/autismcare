@@ -13,7 +13,7 @@
   <fieldset>
     <legend>2. How far</legend>
     <label for="radius">Within <strong><output id="radius-value">10</output> km</strong></label>
-    <input id="radius" type="range" min="5" max="50" step="5" value="10">
+    <input id="radius" type="range" min="5" max="50" step="5" value="10" aria-valuetext="10 km">
   </fieldset>
 
   <fieldset>
@@ -29,8 +29,8 @@
   <p id="search-error" class="badge badge-error" role="alert" hidden></p>
 </form>
 
-<section aria-live="polite">
-  <p id="result-summary" class="result-summary"></p>
+<section aria-label="Search results">
+  <p id="result-summary" class="result-summary" role="status"></p>
   <p id="map-notice" class="badge badge-warning" hidden>The map couldn't load, so results are shown as a list.</p>
   <div id="map" class="map" hidden></div>
   <ul id="results" class="list"></ul>

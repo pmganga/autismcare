@@ -2,14 +2,18 @@ from django import forms
 from django.contrib.auth import get_user_model
 
 
+# autocomplete lets browsers fill in the user's own details (WCAG 1.3.5, NFR 5)
 class RegisterForm(forms.Form):
-    full_name = forms.CharField(max_length=150, label="Full name")
-    email = forms.EmailField()
-    phone = forms.CharField(max_length=30)
+    full_name = forms.CharField(max_length=150, label="Full name",
+                                widget=forms.TextInput(attrs={"autocomplete": "name"}))
+    email = forms.EmailField(widget=forms.EmailInput(attrs={"autocomplete": "email"}))
+    phone = forms.CharField(max_length=30, widget=forms.TextInput(attrs={"autocomplete": "tel", "type": "tel"}))
     password = forms.CharField(
-        widget=forms.PasswordInput, help_text="At least 12 characters.", min_length=12
+        widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
+        help_text="At least 12 characters.", min_length=12,
     )
-    password_confirm = forms.CharField(widget=forms.PasswordInput, label="Confirm password")
+    password_confirm = forms.CharField(widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
+                                       label="Confirm password")
 
     def clean_email(self):
         email = self.cleaned_data["email"]
@@ -25,5 +29,5 @@ class RegisterForm(forms.Form):
 
 
 class LoginForm(forms.Form):
-    email = forms.EmailField()
-    password = forms.CharField(widget=forms.PasswordInput)
+    email = forms.EmailField(widget=forms.EmailInput(attrs={"autocomplete": "email"}))
+    password = forms.CharField(widget=forms.PasswordInput(attrs={"autocomplete": "current-password"}))

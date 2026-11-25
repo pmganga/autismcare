@@ -1,6 +1,7 @@
 /* One question per screen.
  * Without JavaScript the whole form shows on one page and still works.
- * Choosing an answer moves straight to the next question. Back goes to the previous one.
+ * Tapping an answer moves straight to the next question. Back goes to the previous one.
+ * On a keyboard, the arrow keys only choose an answer; Enter or Next moves on (NFR 5).
  * No animations (SRS 3.1).
  */
 (function () {
@@ -11,9 +12,11 @@
 
   var steps = Array.prototype.slice.call(form.querySelectorAll(".step"));
   var nav = form.querySelector(".step-nav");
+  var nextBtn = document.getElementById("step-next");
   var err = document.getElementById("step-error");
   var age = document.getElementById("age");
   var current = 0;
+  var arrowKey = false;
 
   function showError(msg) { err.textContent = msg || ""; err.hidden = !msg; }
 
@@ -21,6 +24,7 @@
     current = Math.max(0, Math.min(i, steps.length - 1));
     steps.forEach(function (s, k) { s.hidden = k !== current; });
     nav.hidden = current === 0;
+    nextBtn.hidden = current === steps.length - 1;
     showError("");
     var target = steps[current].querySelector("input:checked, input, button[type=submit]");
     if (target) target.focus({ preventScroll: true });
@@ -37,18 +41,37 @@
     return true;
   }
 
+  function goNext() {
+    var step = steps[current];
+    if (step.dataset.step === "age") {
+      if (ageIsValid()) show(current + 1);
+    } else if (step.classList.contains("question") && !step.querySelector("input:checked")) {
+      showError("Please answer this question.");
+    } else {
+      show(current + 1);
+    }
+  }
+
   form.addEventListener("click", function (e) {
     var action = e.target.getAttribute("data-action");
-    if (action === "next" && ageIsValid()) show(current + 1);
+    if (action === "next") goNext();
     if (action === "back") show(current - 1);
   });
 
   age.addEventListener("keydown", function (e) {
-    if (e.key === "Enter") { e.preventDefault(); if (ageIsValid()) show(current + 1); }
+    if (e.key === "Enter") { e.preventDefault(); goNext(); }
+  });
+
+  form.addEventListener("keydown", function (e) {
+    if (e.target.type !== "radio") return;
+    if (e.key.indexOf("Arrow") === 0) arrowKey = true;
+    if (e.key === "Enter") { e.preventDefault(); goNext(); }
   });
 
   form.addEventListener("change", function (e) {
-    if (e.target.type === "radio") show(current + 1);
+    if (e.target.type !== "radio") return;
+    if (arrowKey) { arrowKey = false; return; }  // keyboard: wait for Enter or Next
+    show(current + 1);
   });
 
   form.addEventListener("submit", function (e) {

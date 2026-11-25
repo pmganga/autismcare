@@ -105,6 +105,22 @@ class SearchTests(TestCase):
         self.assertEqual(r.status_code, 400)
         self.assertIn("between 5 and 50", r.data["detail"])
 
+    def test_saved_list_cleared_when_data_changes(self):
+        self.assertEqual(len(self.search(radius_km=10)), 1)
+        lic = self.near.license
+        lic.status = "REJECTED"
+        lic.save()
+        self.assertEqual(len(self.search(radius_km=10)), 0)
+        lic.status = "APPROVED"
+        lic.save()
+        self.assertEqual(len(self.search(radius_km=10, specialization="Play therapy")), 0)
+        self.near.specializations.add(Specialization.objects.create(name="Play therapy"))
+        self.assertEqual(len(self.search(radius_km=10, specialization="Play therapy")), 1)
+
+    def test_api_reports_server_time(self):
+        r = APIClient().get(reverse("api-search"), {"lat": NAIROBI[0], "lng": NAIROBI[1], "radius": 10})
+        self.assertRegex(r["Server-Timing"], r"^app;dur=\d+\.\d$")
+
     def test_public_profile_hidden_until_verified(self):
         self.assertEqual(self.client.get(reverse("therapist-detail", args=[self.near.pk])).status_code, 200)
         self.assertEqual(self.client.get(reverse("therapist-detail", args=[self.pending.pk])).status_code, 404)
@@ -198,6 +214,8 @@ class AdminVerificationTests(TestCase):
     def test_admin_approve_action_makes_therapist_searchable(self):
         self.client.force_login(self.admin)
         lic = self.t.license
+        # Search first, so the saved list of verified therapists is out of date after approval
+        self.assertEqual(len(search_therapists(SearchParams(lat=NAIROBI[0], lng=NAIROBI[1], radius_km=5))), 0)
         r = self.client.post(reverse("admin:directory_licenseverification_changelist"),
                              {"action": "approve", "_selected_action": [lic.pk]})
         self.assertEqual(r.status_code, 302)

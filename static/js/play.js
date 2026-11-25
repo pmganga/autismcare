@@ -92,6 +92,7 @@
     });
     $("feedback").textContent = "";
     $("next").hidden = true;
+    $("card-prompt").focus();  // keeps keyboard focus on the new card, not on the hidden Next button
     shownAt = performance.now();
     speak("What is this?");
   }

@@ -4,6 +4,7 @@
 {% block content %}
 {% include "screening/_disclaimer.html" %}
 
+<h1 class="narrow">Screening questions</h1>
 <form method="post" id="screening-form" class="card narrow" novalidate>
   {% csrf_token %}
 
@@ -47,6 +48,7 @@
 
   <div class="row wrap step-nav js-only" hidden>
     <button type="button" class="btn btn-quiet" data-action="back">Back</button>
+    <button type="button" class="btn btn-secondary" data-action="next" id="step-next">Next</button>
   </div>
   <p id="step-error" class="badge badge-error" role="alert" hidden></p>
 </form>

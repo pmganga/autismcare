@@ -5,11 +5,15 @@ from .models import Learner, LearningSession
 
 
 class TeacherRegisterForm(forms.Form):
-    full_name = forms.CharField(max_length=150, label="Full name")
-    school_name = forms.CharField(max_length=200, label="School")
-    email = forms.EmailField()
-    password = forms.CharField(widget=forms.PasswordInput, min_length=12, help_text="At least 12 characters.")
-    password_confirm = forms.CharField(widget=forms.PasswordInput, label="Confirm password")
+    full_name = forms.CharField(max_length=150, label="Full name",
+                                widget=forms.TextInput(attrs={"autocomplete": "name"}))
+    school_name = forms.CharField(max_length=200, label="School",
+                                  widget=forms.TextInput(attrs={"autocomplete": "organization"}))
+    email = forms.EmailField(widget=forms.EmailInput(attrs={"autocomplete": "email"}))
+    password = forms.CharField(widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
+                               min_length=12, help_text="At least 12 characters.")
+    password_confirm = forms.CharField(widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
+                                       label="Confirm password")
 
     def clean_email(self):
         email = self.cleaned_data["email"]
