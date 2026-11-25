@@ -114,7 +114,10 @@ database and user, writes `.env`, and loads the tables and demo data:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\setup_postgres.ps1
 python manage.py createsuperuser
+python manage.py test                 # runs every test on PostgreSQL
 ```
+
+The code uses no SQLite-only features (no raw SQL), so the same tests run on both.
 
 ## Test on a phone
 
@@ -126,17 +129,53 @@ Note: phone browsers only allow "Use my location" on HTTPS sites (or on
 `localhost`), so over plain Wi-Fi use the typed-town search. GPS will work once
 the app is deployed with HTTPS.
 
-## Production-style server
+## Production-style server on this computer
 
 `runserver` is for development only and handles one request at a time. To run
-several worker processes (needed for the NFR 1 load test):
+several worker processes with the production settings (needed for the NFR 1 load test):
 
 ```powershell
 $env:DJANGO_DEBUG = "False"
+$env:DJANGO_SECRET_KEY = "any-long-random-text-for-local-testing"
+$env:DJANGO_SSL_REDIRECT = "False"     # plain http on this computer
+python manage.py collectstatic --noinput
 uvicorn config.asgi:application --host 127.0.0.1 --port 8000 --workers 3
 ```
 
-On the Linux deployment target (SRS 2.4), use gunicorn or uvicorn with one worker per CPU core.
+## Linux server (SRS 2.4)
+
+The production target is a Linux server with PostgreSQL. With `DJANGO_DEBUG=False`:
+- `DJANGO_SECRET_KEY` must be set, or the app refuses to start.
+- HTTPS is required: http requests are redirected, cookies are sent over HTTPS only,
+  and browsers are told to use HTTPS for 30 days (HSTS).
+- CSS and JavaScript are served by WhiteNoise, compressed (Brotli and gzip), with
+  file names that change when the file changes, so browsers can cache them for a year.
+- `DATABASE_URL` points to the PostgreSQL database.
+
+Environment variables to set on the host:
+
+| Variable | Example |
+|---|---|
+| `DJANGO_SECRET_KEY` | a long random string |
+| `DJANGO_DEBUG` | `False` |
+| `DJANGO_ALLOWED_HOSTS` | `autismcare.onrender.com` |
+| `DJANGO_CSRF_TRUSTED_ORIGINS` | `https://autismcare.onrender.com` |
+| `DATABASE_URL` | given by the PostgreSQL host |
+| `OLLAMA_URL` | empty (no AI model on the server; the built-in cards are used) |
+
+Build and start commands:
+
+```bash
+./build.sh
+gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2
+```
+
+`build.sh` installs the packages, collects the static files, updates the database
+and loads the screening questions. Use about two gunicorn workers per CPU core.
+
+`python manage.py check --deploy` passes with two warnings, both left on purpose:
+HSTS for subdomains and HSTS preload. On a shared host address the subdomains
+belong to other sites.
 
 ## Tests
 
