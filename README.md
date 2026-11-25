@@ -82,7 +82,10 @@ managed PostgreSQL host with AES-256 storage encryption turned on.
 | FR 3.3 Therapist profile management and licence upload | `directory/views.py`, `directory/api_views.py` |
 | Admin licence verification | `directory/admin.py` (approve/reject actions) |
 | NFR 1 Search under 500 ms at 10k clinics / 100 users | `directory/search.py` (bounding box, indexed lat/lng, saved list of verified therapists); `perf/locustfile.py` |
+| NFR 2 Pages under 2.5 MB, fast on 3G | `config/tests_page_weight.py`; see [Page size on 3G](#page-size-on-3g-nfr-2) |
 | NFR 5 Accessibility (WCAG 2.1 AA) | `config/tests_accessibility.py`; see [Accessibility](#accessibility-nfr-5) |
+| NFR 8 Works in Chrome, Edge, Firefox, Safari and phone browsers | `e2e/browsers.py`; see [Browsers](#browsers-nfr-8) |
+| SRS 2.4 Linux server and PostgreSQL | `config/settings.py`, `build.sh`; see [Linux server](#linux-server-srs-24) |
 | SRS 3.1 UI (low-saturation colours, 48 px targets, inline errors) | `static/css/style.css`, `templates/` |
 | SRS 3.4 5-second timeout and list-only fallback | `directory/geocoding.py`, `static/js/find.js` |
 
@@ -114,7 +117,10 @@ database and user, writes `.env`, and loads the tables and demo data:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\setup_postgres.ps1
 python manage.py createsuperuser
+python manage.py test                 # runs every test on PostgreSQL
 ```
+
+The code uses no SQLite-only features (no raw SQL), so the same tests run on both.
 
 ## Test on a phone
 
@@ -126,17 +132,53 @@ Note: phone browsers only allow "Use my location" on HTTPS sites (or on
 `localhost`), so over plain Wi-Fi use the typed-town search. GPS will work once
 the app is deployed with HTTPS.
 
-## Production-style server
+## Production-style server on this computer
 
 `runserver` is for development only and handles one request at a time. To run
-several worker processes (needed for the NFR 1 load test):
+several worker processes with the production settings (needed for the NFR 1 load test):
 
 ```powershell
 $env:DJANGO_DEBUG = "False"
+$env:DJANGO_SECRET_KEY = "any-long-random-text-for-local-testing"
+$env:DJANGO_SSL_REDIRECT = "False"     # plain http on this computer
+python manage.py collectstatic --noinput
 uvicorn config.asgi:application --host 127.0.0.1 --port 8000 --workers 3
 ```
 
-On the Linux deployment target (SRS 2.4), use gunicorn or uvicorn with one worker per CPU core.
+## Linux server (SRS 2.4)
+
+The production target is a Linux server with PostgreSQL. With `DJANGO_DEBUG=False`:
+- `DJANGO_SECRET_KEY` must be set, or the app refuses to start.
+- HTTPS is required: http requests are redirected, cookies are sent over HTTPS only,
+  and browsers are told to use HTTPS for 30 days (HSTS).
+- CSS and JavaScript are served by WhiteNoise, compressed (Brotli and gzip), with
+  file names that change when the file changes, so browsers can cache them for a year.
+- `DATABASE_URL` points to the PostgreSQL database.
+
+Environment variables to set on the host:
+
+| Variable | Example |
+|---|---|
+| `DJANGO_SECRET_KEY` | a long random string |
+| `DJANGO_DEBUG` | `False` |
+| `DJANGO_ALLOWED_HOSTS` | `autismcare.onrender.com` |
+| `DJANGO_CSRF_TRUSTED_ORIGINS` | `https://autismcare.onrender.com` |
+| `DATABASE_URL` | given by the PostgreSQL host |
+| `OLLAMA_URL` | empty (no AI model on the server; the built-in cards are used) |
+
+Build and start commands:
+
+```bash
+./build.sh
+gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2
+```
+
+`build.sh` installs the packages, collects the static files, updates the database
+and loads the screening questions. Use about two gunicorn workers per CPU core.
+
+`python manage.py check --deploy` passes with two warnings, both left on purpose:
+HSTS for subdomains and HSTS preload. On a shared host address the subdomains
+belong to other sites.
 
 ## Tests
 
@@ -186,6 +228,77 @@ locust -f perf/locustfile.py --host http://127.0.0.1:8000 --users 100 --spawn-ra
 
 Locust reports two rows: the time it measured, and `search (server time)`, the
 server's own time from the `Server-Timing` header that every response carries.
+
+## Page size on 3G (NFR 2)
+
+Measured on the wire with the production settings (compressed, first visit, nothing cached):
+
+| Page | Files | Size |
+|---|---|---|
+| Home, login, screening intro | 2 | 3.8–3.9 KB |
+| Screening questions | 3 | 5.9 KB |
+| Teacher classroom, session setup | 2 | 4.2 KB |
+| Play screen | 3 | 5.8 KB |
+| Find a therapist (with filter options) | 4 | 7.2 KB |
+| A 50 km search (30 results) | 1 | 4.1 KB |
+| Map after a search: Leaflet plus about 15 map tiles | 19 | 229 KB |
+
+The heaviest view, a search with the map, is about 240 KB, a tenth of the 2.5 MB limit.
+On a repeat visit the CSS and JavaScript come from the browser cache, so only the
+page itself (2–4 KB) is downloaded.
+
+What keeps pages small:
+- No images or web fonts: the flashcards are emoji and the text uses the phone's own font.
+- Pages and API replies are compressed with gzip (`GZipMiddleware`, which in
+  Django includes protection against the BREACH attack).
+- CSS and JavaScript are compressed with Brotli or gzip by WhiteNoise and cached for a year.
+- The map library loads only after a search, and the results list shows before the map.
+  If the map takes more than 5 seconds, the page shows the list only (SRS 3.4).
+- Search results are capped at the 30 nearest therapists.
+
+`python manage.py test config.tests_page_weight` keeps every page under 50 KB compressed.
+
+Load times in Chromium with the Chrome DevTools 3G presets (first visit, empty cache):
+
+| Page | Fast 3G (1.6 Mbps, 563 ms round trip) | Slow 3G (500 kbps, 2 s round trip) |
+|---|---|---|
+| Home | 1.4 s | 4.4 s |
+| Screening questions | 1.4 s | 4.4 s |
+| Find a therapist | 1.4 s | 4.3 s |
+
+The pages are so small that the time is almost all network round trips, not download
+time. These were measured against this computer over plain http. On the live site,
+the first visit adds the DNS lookup and the HTTPS handshake: about 1–2 more round trips.
+
+## Browsers (NFR 8)
+
+`python e2e/browsers.py` runs the main flows in real browser engines against a running
+server: Chromium (Chrome and Edge), Firefox and WebKit (Safari), on desktop and on an
+emulated Android phone (Pixel 7) and iPhone (iPhone 13). The map's outside requests
+are blocked, so the list-only fallback (SRS 3.4) is tested too.
+
+| Browser | Home | Screening | Screening by keyboard | Therapist search | Teaching session |
+|---|---|---|---|---|---|
+| Chrome / Edge (desktop) | pass | pass | pass | pass | pass |
+| Firefox (desktop) | pass | pass | pass | pass | pass |
+| Safari (desktop) | pass | pass | pass | pass | pass |
+| Chrome on Android | pass | pass | — | pass | pass |
+| Safari on iPhone | pass | pass | — | pass | pass |
+
+Run it with the server started as in [Production-style server on this computer](#production-style-server-on-this-computer),
+plus `$env:AI_FLASHCARDS_ENABLED = "False"` so the AI model doesn't use the CPU during the test:
+
+```powershell
+pip install playwright==1.65.2
+playwright install chromium firefox webkit
+python e2e/browsers.py
+```
+
+The CSS and JavaScript were also checked against browser support data
+(`eslint-plugin-compat` and `doiuse`). Every feature used works in the last 2 versions of
+Chrome, Edge, Firefox, Safari, Samsung Internet, Chrome on Android and Safari on iPhone,
+and in every browser with more than 0.5% use in Kenya (back to Chrome 109). Without
+JavaScript, the screening questionnaire still works as one long form.
 
 ## Accessibility (NFR 5)
 

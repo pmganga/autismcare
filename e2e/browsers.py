@@ -3,7 +3,8 @@
 Runs the main flows in Chromium (Chrome, Edge), Firefox and WebKit (Safari), on desktop
 and on an emulated Android phone and iPhone. Requests to other sites (map library and
 tiles) are blocked, so the list-only map fallback (SRS 3.4) is tested too.
-Needs a running server with the demo data (seed, seed_questions).
+Needs a running server with the demo data (seed, seed_questions), with AI_FLASHCARDS_ENABLED=False
+as on the cloud server: otherwise the AI model uses the whole CPU during the test.
 """
 import argparse
 import time
@@ -42,7 +43,8 @@ def screening(page, base):
     for _ in range(20):
         page.locator(".step:not([hidden]) .answer", has_text="No").click()
     page.get_by_role("button", name="See my result").click()
-    expect(page.get_by_text("Score 0 of 20")).to_be_visible()
+    expect(page.get_by_role("heading", level=1)).to_contain_text("likelihood")
+    expect(page.get_by_text("of 20")).to_be_visible()
 
 
 def screening_keyboard(page, base):
@@ -51,8 +53,7 @@ def screening_keyboard(page, base):
     page.fill("#age", "20")
     page.keyboard.press("Enter")
     first = page.locator(".step:not([hidden])")
-    expect(first).to_contain_text("Question 1 of 20")
-    page.keyboard.press("Tab")
+    expect(first).to_contain_text("Question 1 of 20")   # focus is on the first answer
     page.keyboard.press("ArrowRight")
     expect(page.locator(".step:not([hidden])")).to_contain_text("Question 1 of 20")
     page.keyboard.press("Enter")
@@ -75,7 +76,7 @@ def teaching(page, base):
     page.fill("input[name=email]", TEACHER[0])
     page.fill("input[name=password]", TEACHER[1])
     page.get_by_role("button", name="Log in").click()
-    page.wait_for_load_state()
+    page.wait_for_url(lambda url: "/login" not in url)   # wait for the login redirect
     page.goto(base + "/teach/")
     page.get_by_role("link", name="Start session").first.click()
     page.select_option("select[name=planned_cards]", "6")
@@ -86,6 +87,7 @@ def teaching(page, base):
         nxt = page.locator("#next")
         expect(nxt).to_be_visible()
         nxt.click()
+    page.wait_for_url("**/summary/")
     expect(page.get_by_role("heading", name="Session summary", exact=False)).to_be_visible()
     page.get_by_role("button", name="Log out").click()
 
