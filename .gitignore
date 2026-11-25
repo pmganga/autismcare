@@ -2,11 +2,9 @@ venv/
 __pycache__/
 *.pyc
 .env
+.env.local
 db.sqlite3
 private_media/
 staticfiles/
-.env.local
-.neon
-node_modules/
 node_modules/
 .neon/
