@@ -1,5 +1,9 @@
-"""Adds how long the server took to each response (NFR 1)."""
+"""Times every request (NFR 1) and keeps recent timings for the admin performance page."""
 import time
+from collections import deque
+
+STARTED = time.time()
+RECENT = deque(maxlen=2000)  # (finished at, path, status, ms) for this server process
 
 
 class ServerTimingMiddleware:
@@ -13,4 +17,6 @@ class ServerTimingMiddleware:
         response = self.get_response(request)
         ms = (time.perf_counter() - start) * 1000
         response["Server-Timing"] = f"app;dur={ms:.1f}"
+        if not request.path.startswith("/static/"):
+            RECENT.append((time.time(), request.path, response.status_code, ms))
         return response

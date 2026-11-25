@@ -1,0 +1,49 @@
+{% extends "admin/base_site.html" %}
+{% block breadcrumbs %}<div class="breadcrumbs"><a href="{% url 'admin:index' %}">Home</a> › System performance</div>{% endblock %}
+{% block content %}
+<div id="content-main">
+  <p>Figures are for this server process, which has been running for {{ uptime }}. They reset when the server restarts.</p>
+
+  <h2>Response times (NFR 1: under {{ target_ms }} ms)</h2>
+  <table>
+    <thead><tr><th scope="col">Requests</th><th scope="col">Count</th><th scope="col">Median</th><th scope="col">95th percentile</th><th scope="col">Slowest</th><th scope="col">Under {{ target_ms }} ms</th></tr></thead>
+    <tbody>
+      <tr><td>All pages and API calls</td>
+        {% if all_requests %}<td>{{ all_requests.count }}</td><td>{{ all_requests.median|floatformat:0 }} ms</td><td>{{ all_requests.p95|floatformat:0 }} ms</td><td>{{ all_requests.slowest|floatformat:0 }} ms</td><td>{{ all_requests.under_target|floatformat:1 }}%</td>
+        {% else %}<td colspan="5">No requests yet</td>{% endif %}</tr>
+      <tr><td>Therapist search</td>
+        {% if search %}<td>{{ search.count }}</td><td>{{ search.median|floatformat:0 }} ms</td><td>{{ search.p95|floatformat:0 }} ms</td><td>{{ search.slowest|floatformat:0 }} ms</td><td>{{ search.under_target|floatformat:1 }}%</td>
+        {% else %}<td colspan="5">No searches yet</td>{% endif %}</tr>
+    </tbody>
+  </table>
+
+  <h2>Health</h2>
+  <table>
+    <tbody>
+      <tr><th scope="row">Database reply time</th><td>{{ database_ms|floatformat:1 }} ms</td></tr>
+      <tr><th scope="row">Requests in the last hour</th><td>{{ requests_last_hour }}</td></tr>
+      <tr><th scope="row">Server errors in the last hour</th><td>{{ errors }}</td></tr>
+    </tbody>
+  </table>
+
+  {% if slowest %}
+  <h2>Slowest recent requests</h2>
+  <table>
+    <thead><tr><th scope="col">Address</th><th scope="col">Status</th><th scope="col">Time</th></tr></thead>
+    <tbody>{% for r in slowest %}<tr><td>{{ r.1 }}</td><td>{{ r.2 }}</td><td>{{ r.3|floatformat:0 }} ms</td></tr>{% endfor %}</tbody>
+  </table>
+  {% endif %}
+
+  <h2>Usage</h2>
+  <table>
+    <tbody>
+      <tr><th scope="row">Therapists</th><td>{{ therapists }} (approved {{ licences.APPROVED|default:0 }}, pending {{ licences.PENDING|default:0 }}, rejected {{ licences.REJECTED|default:0 }})</td></tr>
+      <tr><th scope="row">Clinics</th><td>{{ clinics }}</td></tr>
+      <tr><th scope="row">Screenings in total</th><td>{{ screenings_total }}</td></tr>
+      <tr><th scope="row">Screenings in the last 7 days</th><td>Low {{ screenings_week.LOW|default:0 }}, Medium {{ screenings_week.MEDIUM|default:0 }}, High {{ screenings_week.HIGH|default:0 }}</td></tr>
+      <tr><th scope="row">Learning sessions in the last 7 days</th><td>{{ sessions_week }}</td></tr>
+      <tr><th scope="row">Flashcards</th><td>built-in {{ flashcards.BUILTIN|default:0 }}, AI-made {{ flashcards.AI|default:0 }}</td></tr>
+    </tbody>
+  </table>
+</div>
+{% endblock %}

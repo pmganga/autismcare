@@ -110,4 +110,7 @@ def license_document(request, pk):
     lic = get_object_or_404(LicenseVerification, pk=pk)
     if not lic.document:
         raise Http404
-    return FileResponse(lic.document.open("rb"), as_attachment=False)
+    try:
+        return FileResponse(lic.document.open("rb"), as_attachment=False, filename=lic.document.name.rsplit("/", 1)[-1])
+    except FileNotFoundError:  # demo licences have no real file
+        raise Http404

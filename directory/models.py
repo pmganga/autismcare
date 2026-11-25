@@ -5,6 +5,8 @@ from django.conf import settings
 from django.core.validators import FileExtensionValidator, MaxValueValidator, MinValueValidator
 from django.db import models
 
+from .storage import DatabaseStorage
+
 
 class Specialization(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -82,6 +84,18 @@ def license_upload_path(instance, filename):
     return f"licenses/{instance.therapist_id}/{uuid.uuid4().hex}_{filename}"
 
 
+class StoredFile(models.Model):
+    """A private uploaded file (licence document) kept in the database."""
+
+    name = models.CharField(max_length=255, unique=True)
+    content = models.BinaryField()
+    size = models.PositiveIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
+
 class LicenseVerification(models.Model):
     class Status(models.TextChoices):
         PENDING = "PENDING", "Pending"
@@ -92,6 +106,7 @@ class LicenseVerification(models.Model):
     license_number = models.CharField(max_length=100)
     document = models.FileField(
         upload_to=license_upload_path,
+        storage=DatabaseStorage(),
         validators=[FileExtensionValidator(["pdf", "jpg", "jpeg", "png"])],
     )
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING, db_index=True)
