@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Screening questions · AutismCare{% endblock %}
+{% block content %}
+{% include "screening/_disclaimer.html" %}
+
+<form method="post" id="screening-form" class="card narrow" novalidate>
+  {% csrf_token %}
+
+  {% if errors.answers %}
+    <div class="badge badge-error" role="alert">{% for e in errors.answers %}<p>{{ e }}</p>{% endfor %}</div>
+  {% endif %}
+
+  <div class="step" data-step="age">
+    <div class="field{% if errors.child_age_months %} has-error{% endif %}">
+      <label for="age">How old is your child, in months?</label>
+      <input id="age" name="child_age_months" type="number" inputmode="numeric"
+             min="{{ min_age }}" max="{{ max_age }}" value="{{ age }}" required>
+      <p class="help">For example, 1 year and 8 months = 20 months.</p>
+      {% for e in errors.child_age_months %}<p class="badge badge-error">{{ e }}</p>{% endfor %}
+      {% if age_out_of_range %}<p><a href="{% url 'find' %}">Find a therapist near you</a></p>{% endif %}
+    </div>
+    <button type="button" class="btn js-only" data-action="next">Continue</button>
+  </div>
+
+  {% for q, answer in questions %}
+    <fieldset class="step question" data-step="{{ forloop.counter }}">
+      <p class="progress js-only">Question {{ forloop.counter }} of {{ questions|length }}</p>
+      <legend class="question-text">{{ q.text }}</legend>
+      <div class="answer-buttons">
+        <label class="answer">
+          <input type="radio" name="q{{ q.id }}" value="yes" {% if answer is True %}checked{% endif %} required>
+          <span>Yes</span>
+        </label>
+        <label class="answer">
+          <input type="radio" name="q{{ q.id }}" value="no" {% if answer is False %}checked{% endif %}>
+          <span>No</span>
+        </label>
+      </div>
+    </fieldset>
+  {% endfor %}
+
+  <div class="step" data-step="review">
+    <p class="js-only">You have answered every question.</p>
+    <button type="submit" class="btn">See my result</button>
+  </div>
+
+  <div class="row wrap step-nav js-only" hidden>
+    <button type="button" class="btn btn-quiet" data-action="back">Back</button>
+  </div>
+  <p id="step-error" class="badge badge-error" role="alert" hidden></p>
+</form>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/screening.js' %}"></script>{% endblock %}
