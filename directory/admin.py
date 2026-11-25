@@ -5,6 +5,7 @@ from django.utils import timezone
 from django.utils.html import format_html
 
 from .models import Clinic, InsuranceProvider, LicenseVerification, Specialization, Therapist
+from .search import clear_search_cache
 
 
 @admin.register(LicenseVerification)
@@ -26,6 +27,7 @@ class LicenseVerificationAdmin(admin.ModelAdmin):
 
     def _review(self, request, queryset, status):
         n = queryset.update(status=status, reviewed_at=timezone.now(), reviewed_by=request.user)
+        clear_search_cache()  # update() skips the save signals
         self.message_user(request, f"{n} licence(s) marked {status.lower()}.")
 
     @admin.action(description="Approve selected licences")

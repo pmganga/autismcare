@@ -126,6 +126,7 @@ SEARCH_MIN_RADIUS_KM = 5
 SEARCH_MAX_RADIUS_KM = 50
 SEARCH_MAX_RESULTS = 30             # nearest N therapists returned per search
 SEARCH_MAX_CLINICS_PER_RESULT = 3   # nearest clinics shown per therapist
+SEARCH_CACHE_SECONDS = 30           # how long the list of verified therapists is reused (NFR 1)
 
 # --- Files ---------------------------------------------------------------------
 # Licence documents are private: only staff can open them, through the admin.
