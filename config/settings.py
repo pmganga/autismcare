@@ -78,10 +78,13 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 
 # --- Database (SRS 2.4: PostgreSQL) -----------------------------------------
-# DATABASE_URL is what hosts such as Render give; DB_* is for a local PostgreSQL.
+# DATABASE_URL is what hosts such as Neon and Render give; DB_* is for a local PostgreSQL.
 if os.getenv("DATABASE_URL"):
     DATABASES = {"default": dj_database_url.parse(
         os.environ["DATABASE_URL"], conn_max_age=600, conn_health_checks=True)}
+    if "-pooler." in os.environ["DATABASE_URL"]:
+        # Neon's pooler (PgBouncer, transaction mode) can't keep server-side cursors open
+        DATABASES["default"]["DISABLE_SERVER_SIDE_CURSORS"] = True
 elif os.getenv("DB_NAME"):
     DATABASES = {
         "default": {

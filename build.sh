@@ -4,5 +4,6 @@ set -o errexit
 
 pip install -r requirements.txt
 python manage.py collectstatic --noinput
-python manage.py migrate --noinput
-python manage.py seed_questions
+# Migrations use Neon's direct connection; the pooled one is for app traffic
+DATABASE_URL="${DATABASE_URL_UNPOOLED:-$DATABASE_URL}" python manage.py migrate --noinput
+DATABASE_URL="${DATABASE_URL_UNPOOLED:-$DATABASE_URL}" python manage.py seed_questions
