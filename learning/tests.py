@@ -355,3 +355,34 @@ class PageAndPermissionTests(TestCase):
         therapist = User.objects.create_user(email="th@x.test", password=PW, role=User.Role.THERAPIST)
         self.client.force_login(therapist)
         self.assertRedirects(self.client.get(reverse("teach")), reverse("home"))
+
+
+@override_settings(AI_FLASHCARDS_ENABLED=True, AI_FLASHCARDS_PROVIDER="wordbank")
+class WordBankTests(TestCase):
+    """Rule-based card service used on the cloud server (no AI model)."""
+
+    def test_every_word_passes_the_picture_check(self):
+        from .wordbank_data import WORDS
+        cards = [{"label": l, "emoji": e, "category": c} for l, e, c, _ in WORDS]
+        self.assertEqual(len(ai.validate_cards(cards)), len(WORDS))
+
+    def test_bank_loaded_by_migration(self):
+        from .models import WordBankEntry
+        self.assertGreaterEqual(WordBankEntry.objects.count(), 150)
+        for level in range(1, 6):
+            self.assertTrue(WordBankEntry.objects.filter(level=level).exists())
+
+    def test_adds_new_cards_without_repeats(self):
+        first = ai.add_new_cards(level=3, count=4)
+        second = ai.add_new_cards(level=3, count=4)
+        self.assertEqual(len(first), 4)
+        labels = [c["label"] for c in first + second]
+        self.assertEqual(len(labels), len(set(labels)))
+        self.assertEqual(Flashcard.objects.filter(source="WORDBANK", difficulty=3).count(), len(labels))
+
+    def test_session_gets_cards_straight_away(self):
+        teacher = make_teacher("wb@school.test")
+        learner = Learner.objects.create(teacher=teacher, nickname="Neema", current_level=2)
+        session = start_session(teacher, learner, audio_enabled=True, sensory_mode="soft", planned_cards=6)
+        self.assertEqual(session.ai_status, LearningSession.AIStatus.USED)
+        self.assertGreater(session.ai_cards_added, 0)
