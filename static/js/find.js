@@ -68,7 +68,10 @@
   }).catch(function () { /* filters stay at "Any" */ });
 
   // ---------- location ----------
-  $("radius").addEventListener("input", function () { $("radius-value").textContent = this.value; });
+  $("radius").addEventListener("input", function () {
+    $("radius-value").textContent = this.value;
+    this.setAttribute("aria-valuetext", this.value + " km");
+  });
 
   $("use-location").addEventListener("click", function () {
     if (!navigator.geolocation) {
@@ -153,7 +156,8 @@
             ? el("p", { className: "help", text: "Insurance: " + nearest.insurance_providers.join(", ") }) : null,
           tags,
         ]),
-        el("a", { className: "btn btn-secondary", href: "tel:" + t.phone, text: "Call" }),
+        el("a", { className: "btn btn-secondary", href: "tel:" + t.phone, text: "Call",
+                  "aria-label": "Call " + t.full_name }),
       ]));
     });
     drawMap(data);
