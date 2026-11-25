@@ -114,7 +114,8 @@ EXTERNAL_API_TIMEOUT_SECONDS = 5
 # --- Search limits (FR 3.1) --------------------------------------------------
 SEARCH_MIN_RADIUS_KM = 5
 SEARCH_MAX_RADIUS_KM = 50
-SEARCH_MAX_RESULTS = 100
+SEARCH_MAX_RESULTS = 30             # nearest N therapists returned per search
+SEARCH_MAX_CLINICS_PER_RESULT = 3   # nearest clinics shown per therapist
 
 # --- Files ---------------------------------------------------------------------
 # Licence documents are private: they are NOT served from a public URL.
