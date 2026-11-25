@@ -37,7 +37,7 @@ class Clinic(models.Model):
 
     class Meta:
         ordering = ["name"]
-        # Composite index for the bounding-box pre-filter in radius search (NFR 1).
+        # Speeds up the radius search (NFR 1).
         indexes = [models.Index(fields=["latitude", "longitude"], name="clinic_lat_lng_idx")]
 
     def __str__(self):

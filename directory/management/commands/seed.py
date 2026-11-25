@@ -1,10 +1,6 @@
-"""Load demo data for development and testing.
+"""Demo data for development and testing: filter options, therapists, clinics and a teacher.
 
-    python manage.py seed                # filter options + ~24 demo therapists
-    python manage.py seed --bulk 10000   # also 10,000 clinics for the NFR 1 load test
-    python manage.py seed --reset        # delete all demo data first
-
-All demo accounts use the email domain @demo.autismcare.test and fake names.
+All demo accounts use @demo.autismcare.test and fake names.
 """
 import random
 from math import cos, radians
@@ -33,7 +29,7 @@ SPECIALIZATIONS = [
 
 INSURANCE = ["SHA", "Jubilee Health", "AAR", "Britam", "CIC", "Madison", "RSSB"]
 
-# (name, lat, lng): urban and peri-urban towns, per the project's focus.
+# (name, lat, lng): urban and peri-urban towns
 TOWNS = [
     ("Nairobi", -1.2864, 36.8172),
     ("Kiambu", -1.1714, 36.8356),

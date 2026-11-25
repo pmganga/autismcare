@@ -1,12 +1,6 @@
 # AutismCare: switch the local project from SQLite to PostgreSQL (SRS 2.4).
-#
-# Run from the project folder in your own PowerShell window:
-#     cd C:\Users\Peter\autismcare
-#     powershell -ExecutionPolicy Bypass -File .\setup_postgres.ps1
-#
-# It asks for the password of the "postgres" superuser (set when PostgreSQL
-# was installed), creates a database user and database for AutismCare,
-# writes the .env file, then creates the tables and loads demo data.
+# Asks for the "postgres" password, creates the database and its user,
+# writes .env, then creates the tables and loads the demo data.
 
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot

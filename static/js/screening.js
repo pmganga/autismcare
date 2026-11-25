@@ -1,4 +1,4 @@
-/* One question per screen (progressive enhancement).
+/* One question per screen.
  * Without JavaScript the whole form shows on one page and still works.
  * Choosing an answer moves straight to the next question. Back goes to the previous one.
  * No animations (SRS 3.1).

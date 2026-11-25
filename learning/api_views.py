@@ -1,4 +1,4 @@
-"""JSON endpoints used by the play screen. Session login + CSRF; teacher's own sessions only."""
+"""JSON endpoints for the play screen. Teachers can only use their own sessions."""
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from rest_framework import serializers, status

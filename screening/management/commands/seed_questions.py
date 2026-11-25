@@ -1,13 +1,8 @@
 """Load the 20 questionnaire items.
 
-    python manage.py seed_questions              # placeholder items (default)
-    python manage.py seed_questions --file q.json
-
-IMPORTANT: Using M-CHAT-R/F in an app requires permission from its authors
-(see the official M-CHAT website). Until permission is granted, this loads
-PLACEHOLDER text with the same structure: 20 yes/no items, with items 2, 5
-and 12 reverse-scored. When you have permission, put the licensed wording in
-a JSON file and load it with --file:
+Using the M-CHAT-R/F wording needs permission from its authors. Until then,
+placeholder text with the same structure is loaded: 20 yes/no items, with items
+2, 5 and 12 reverse-scored. --file loads the licensed wording from a JSON file:
 
     [{"number": 1, "text": "...", "reverse": false}, ...]
 """

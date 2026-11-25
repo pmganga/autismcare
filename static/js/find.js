@@ -1,5 +1,5 @@
 /* Find a therapist (FR 3.1, FR 3.2).
- * - Location from the W3C Geolocation API, or a typed place name (geocoded by our server).
+ * - Location from the browser (GPS) or a typed place name.
  * - Every network call times out after 5 s (SRS 3.4).
  * - The map (Leaflet) loads only when needed. If it doesn't load within 5 s,
  *   results are shown as a list only (sequence diagram, steps 31-33).

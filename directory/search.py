@@ -1,14 +1,8 @@
-"""Radius search and filtering (FR 3.1, FR 3.2, NFR 1).
+"""Radius search and filters (FR 3.1, FR 3.2, NFR 1).
 
-Two stages:
-1. Bounding box (database): an indexed range query keeps only clinics inside
-   a square around the user and returns just IDs and coordinates.
-2. Great-circle distance (Python): computed on those rows, keeping clinics
-   inside the circle. Doing the maths in Python rather than SQL is fast on any
-   database. On SQLite, Django's SQL trig functions run as slow Python
-   callbacks, one call per row.
-
-Only therapists whose licence is APPROVED are ever returned.
+The database first keeps the clinics inside a square around the user (fast, indexed).
+Python then works out each real distance and keeps the clinics inside the circle.
+Only therapists with an approved licence are returned.
 """
 from collections import defaultdict
 from dataclasses import dataclass
@@ -69,10 +63,10 @@ def parse_params(data):
 
 
 def distance_km(lat1, lng1, lat2, lng2):
-    """Great-circle distance in km (spherical law of cosines)."""
+    """Distance in km between two points on the Earth's surface."""
     lat1, lng1, lat2, lng2 = radians(lat1), radians(lng1), radians(lat2), radians(lng2)
     c = sin(lat1) * sin(lat2) + cos(lat1) * cos(lat2) * cos(lng2 - lng1)
-    return EARTH_RADIUS_KM * acos(min(1.0, max(-1.0, c)))  # clamp guards against rounding
+    return EARTH_RADIUS_KM * acos(min(1.0, max(-1.0, c)))  # keep within -1 to 1 despite rounding
 
 
 def _bounding_box(p: SearchParams):
@@ -88,27 +82,16 @@ class SearchResults(list):
 
 
 def search_therapists(p: SearchParams, limit=None):
-    """Return verified therapists with at least one clinic in range, nearest first.
+    """Return verified therapists with a clinic in range, nearest first.
 
-    Each therapist gets `.distance_km` and `.nearby_clinics` (up to
-    SEARCH_MAX_CLINICS_PER_RESULT in-range clinics, nearest first, each with
-    `.distance_km`). The result list has `.total`, the number of matches before `limit`.
-
-    Query plan (NFR 1):
-      1. IDs of verified therapists matching the filters.
-      2. Therapist-clinic links inside the bounding box via the (latitude,
-         longitude) index, with coordinates. In Python: keep eligible
-         therapists, compute each clinic's distance once, drop clinics outside
-         the circle, nearest clinic per therapist, keep the top `limit`.
-      3. Load only those therapists and their few nearest clinics for display.
+    Each result has .distance_km and .nearby_clinics. The list has .total, the number of matches.
     """
     limit = limit or settings.SEARCH_MAX_RESULTS
     per_result = settings.SEARCH_MAX_CLINICS_PER_RESULT
     lat_range, lng_range = _bounding_box(p)
 
-    # 1. Verified therapists matching the filters (IDs only).
-    # Kept separate from step 2 and joined in Python: combined in one SQL
-    # query, SQLite chose a plan that checked every therapist against every clinic.
+    # 1. Verified therapists that match the filters (IDs only).
+    # A separate query: joined with step 2, SQLite was very slow.
     eligible = Therapist.objects.filter(license__status=LicenseVerification.Status.APPROVED)
     if p.specialization:
         eligible = eligible.filter(specializations__name__iexact=p.specialization)
@@ -122,8 +105,7 @@ def search_therapists(p: SearchParams, limit=None):
     if not eligible_ids:
         return results
 
-    # 2. Therapist-clinic links inside the bounding box (lat/lng index), with
-    # coordinates; distance computed once per clinic in Python.
+    # 2. Clinics inside the square, with each clinic's distance worked out once.
     links = Therapist.clinics.through.objects.filter(
         clinic__latitude__range=lat_range, clinic__longitude__range=lng_range
     )

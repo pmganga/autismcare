@@ -19,7 +19,9 @@
 | AI/NLP service generates new cards for the learner's level (local Qwen model via Ollama), in the background with built-in fallback | `learning/ai.py`, `learning/services.py` |
 | Progress summary: accuracy, level change, response times, card by card | `templates/learning/summary.html` |
 
-**AI setup (optional).** New cards are made by **Qwen 3.5 (2B)**, an open-source
+### AI setup (optional)
+
+New cards are made by Qwen 3.5 (2B), an open-source
 model that runs on the same computer through [Ollama](https://ollama.com). No
 learner data leaves the machine and there is no per-request cost.
 
@@ -28,15 +30,15 @@ ollama pull qwen3.5:2b                         # once (2.7 GB)
 python manage.py generate_flashcards           # optional: fill the bank before a class or demo
 ```
 
-- **Background generation.** On a laptop CPU the model takes 15–60 seconds per
+- Background generation: on a laptop CPU the model takes 15–60 seconds per
   request, so it never holds up a learner. A session starts at once with the
   card bank, the model works in the background, and its cards join the bank
   when ready (status shown on the session summary).
-- **Picture check.** Every AI card is checked before use: a simple lowercase word,
+- Picture check: every AI card is checked before use: a simple lowercase word,
   a real emoji whose official Unicode name contains that word (so 🚌 "bus" passes,
   💧 "water" is rejected), an allowed category, a not-child-safe word list, and
   no duplicates.
-- **Fallback.** If Ollama isn't running (or `OLLAMA_URL` is empty, as on the
+- Fallback: if Ollama isn't running (or `OLLAMA_URL` is empty, as on the
   cloud deployment), sessions use the 60 built-in cards (12 per level). The
   module always works.
 
@@ -58,12 +60,16 @@ python manage.py seed_questions               # loads 20 PLACEHOLDER items
 python manage.py seed_questions --file q.json # loads licensed text once permission is granted
 ```
 
-**Questionnaire wording:** using M-CHAT-R/F in an app requires permission from its
+### Questionnaire wording
+
+Using M-CHAT-R/F in an app requires permission from its
 authors. Until permission is granted, `seed_questions` loads placeholder text with
 the same structure (20 yes/no items; items 2, 5 and 12 reverse-scored). The
 scoring rules work unchanged once the real wording is loaded.
 
-**Encryption at rest (NFR 3):** planned at the infrastructure level, using a
+### Encryption at rest (NFR 3)
+
+Planned at the infrastructure level, using a
 managed PostgreSQL host with AES-256 storage encryption turned on.
 
 ## Therapist directory (Weeks 3–5)
@@ -115,7 +121,7 @@ python manage.py createsuperuser
 2. Run `python manage.py runserver 0.0.0.0:8000` and allow it through Windows Firewall if asked.
 3. On the phone, open `http://<laptop Wi-Fi IP>:8000/` (find the IP with `ipconfig`).
 
-Note: phone browsers only allow **"Use my location"** on HTTPS sites (or on
+Note: phone browsers only allow "Use my location" on HTTPS sites (or on
 `localhost`), so over plain Wi-Fi use the typed-town search. GPS will work once
 the app is deployed with HTTPS.
 
@@ -145,7 +151,7 @@ Locust; SQLite; 10,000 clinics; 100 users each searching every 1–3 s):
 |---|---|---|---|---|
 | `runserver`, first search version | 3,100 ms | 8,600 ms | 17 | 0 |
 | `runserver`, optimised search | 710 ms | 5,800 ms | 27 | 0 |
-| uvicorn, 3 workers, optimised search | **350 ms** | 1,700 ms | 25 | 0 |
+| uvicorn, 3 workers, optimised search | 350 ms | 1,700 ms | 25 | 0 |
 
 A single search takes 30–70 ms. Under load the median meets the 500 ms target,
 but the 95th percentile doesn't yet, because the laptop runs out of CPU. Still to do:

@@ -1,19 +1,8 @@
-"""AI/NLP service for flashcard generation (activity diagram: "Generate flashcard set for that level").
+"""Makes new flashcards with a local AI model (Qwen, run by Ollama) (SRS 3.3).
 
-Uses a local open-source language model (Qwen, served by Ollama) through its
-HTTP JSON API (SRS 3.3). The model runs on the school's own computer, so no
-learner data leaves the machine and there is no per-request cost.
-
-A small model on a laptop CPU takes 15-60 seconds per request, so generation
-runs in the background (see services.py): the session starts at once with
-the built-in card bank, and new cards join the bank when they are ready. Any
-failure (Ollama not running, timeout, invalid output) raises AIUnavailable
-and the built-in cards are used.
-
-Every card the model returns is checked before use: a simple lowercase word,
-a real emoji whose official Unicode name contains that word (so a picture and
-its word always match), an allowed category, nothing on the not-child-safe
-list, and not a duplicate.
+The model runs on this computer, so no learner data leaves it. It is slow on a
+laptop, so services.py runs it in the background. If anything fails, the
+built-in cards are used. Every card is checked before use (see validate_cards).
 """
 import json
 import logging
@@ -73,9 +62,8 @@ OUTPUT_SCHEMA = {
     "required": ["cards"],
 }
 
-# A small model ignores a long "don't repeat" list and keeps suggesting cat, dog
-# and banana, which the built-in bank already has. Asking for one category and
-# a theme per request steers it to new objects.
+# One topic per request gives more new objects.
+# Without it, a small model keeps suggesting cat, dog and banana.
 THEMES = {
     "animals": ["farm animals", "wild animals of the savannah", "animals that live in water", "birds", "insects and small creatures"],
     "food": ["fruits sold at the market", "vegetables", "foods eaten at breakfast", "drinks and snacks"],
@@ -114,18 +102,16 @@ def emoji_name(emoji):
 
 
 def picture_matches(label, emoji):
-    """True if every word of the label appears in the emoji's Unicode name.
+    """True if every word of the label is in the emoji's Unicode name.
 
-    'bus' + 🚌 (BUS) passes; 'shoe' + 👟 (ATHLETIC SHOE) passes;
-    'water' + 💧 (DROPLET) fails. Some real matches are rejected too
-    ('car' + 🚗 AUTOMOBILE): that is the safe side for a teaching app.
+    'bus' + 🚌 (BUS) passes. 'water' + 💧 (DROPLET) fails.
     """
     name_words = set(emoji_name(emoji).lower().split())
     return bool(name_words) and all(w in name_words or w + "s" in name_words for w in label.split())
 
 
 def validate_cards(raw_cards, avoid=()):
-    """Keep only cards that pass every check. `avoid` = labels already in use."""
+    """Keep only safe, simple cards whose picture matches the word. `avoid`: labels already used."""
     avoid = {a.lower() for a in avoid}
     seen, valid = set(), []
     for c in raw_cards:
@@ -148,7 +134,7 @@ def validate_cards(raw_cards, avoid=()):
 
 
 def generate_cards(*, level, count, avoid=(), timeout=None, category=None, theme=None):
-    """Ask the local model for `count` new cards at `level`. Returns validated cards or raises AIUnavailable."""
+    """Ask the model for new cards at this level. Returns checked cards or raises AIUnavailable."""
     if not is_configured():
         raise AIUnavailable("AI flashcards are turned off (no OLLAMA_URL).")
     if not MIN_LEVEL <= level <= MAX_LEVEL:
@@ -171,8 +157,8 @@ def generate_cards(*, level, count, avoid=(), timeout=None, category=None, theme
                 "model": settings.AI_FLASHCARDS_MODEL,
                 "stream": False,
                 "think": False,
-                "format": OUTPUT_SCHEMA,  # Ollama structured output: the reply must match this schema
-                "keep_alive": "30m",      # keep the model loaded between sessions (loading takes ~30 s)
+                "format": OUTPUT_SCHEMA,  # the reply must follow this JSON format
+                "keep_alive": "30m",      # keep the model loaded for 30 minutes (loading takes ~30 s)
                 "options": {"temperature": 0.8, "num_predict": 600},
                 "messages": [
                     {"role": "system", "content": SYSTEM_PROMPT},
@@ -205,11 +191,9 @@ def generate_cards(*, level, count, avoid=(), timeout=None, category=None, theme
 
 
 def add_new_cards(*, level, count, max_requests=3):
-    """Generate and save up to `count` new cards at `level`, asking up to `max_requests` times.
+    """Make and save up to `count` new cards, asking the model up to `max_requests` times.
 
-    A small model often suggests objects the bank already has, so one request
-    may yield nothing. Returns the saved cards; raises AIUnavailable if the
-    service can't be reached at all.
+    Raises AIUnavailable if the model can't be reached.
     """
     saved = []
     for _ in range(max_requests):
@@ -220,8 +204,8 @@ def add_new_cards(*, level, count, max_requests=3):
             cards = generate_cards(level=level, count=count - len(saved), avoid=existing)
         except AIUnavailable as e:
             if isinstance(e.__cause__, requests.RequestException):
-                raise  # not running, timed out or HTTP error: asking again won't help now
-            continue   # this reply had no usable cards: ask again
+                raise  # model not reachable: stop
+            continue   # no usable cards this time: ask again
         for c in cards:
             if save_cards([c], level):
                 saved.append(c)

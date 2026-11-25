@@ -1,10 +1,4 @@
-"""Fill the card bank with AI-generated cards ahead of time (e.g. before a class or a demo).
-
-    python manage.py generate_flashcards               # up to 4 new cards for each level 1-5
-    python manage.py generate_flashcards --level 2 --count 6
-
-Needs Ollama running locally with the model in AI_FLASHCARDS_MODEL (default qwen3.5:2b).
-"""
+"""Add AI-made cards to the bank ahead of time, e.g. before a class or a demo. Needs Ollama running."""
 from django.core.management.base import BaseCommand, CommandError
 
 from learning import ai

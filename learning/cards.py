@@ -1,8 +1,6 @@
-"""Built-in flashcard bank: 60 everyday objects across 5 difficulty levels.
+"""Built-in card bank: 60 everyday objects, 12 per level.
 
-Used when the AI service is not configured or doesn't answer in time (SRS 3.4),
-so a session always works. Levels go from very familiar words with 2 choices
-(level 1) to less common words with 4 same-category choices (level 5).
+Always available, so a session works without the AI service (SRS 3.4).
 """
 
 # (label, symbol, difficulty, category)

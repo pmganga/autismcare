@@ -47,16 +47,14 @@ _ai_busy = threading.Lock()  # one generation at a time: the local model uses th
 
 
 def request_ai_cards(session):
-    """Ask the AI service for new cards at the session's level, without making the learner wait.
+    """Ask the AI service for new cards without making the learner wait.
 
-    In the background (the default) the session starts at once with the cards
-    already in the bank; new cards join the bank when the model finishes and
-    can appear later in this session or the next one.
+    The session starts with the cards already in the bank. New cards are added when the model finishes.
     """
     if not ai.is_configured():
         return
     if not _ai_busy.acquire(blocking=False):
-        return  # a generation is already running; this session uses the bank as it is
+        return  # already making cards: use the bank as it is
     _set_ai_status(session.pk, LearningSession.AIStatus.PENDING)
     session.ai_status = LearningSession.AIStatus.PENDING
     if settings.AI_FLASHCARDS_BACKGROUND:
@@ -77,13 +75,13 @@ def _generate(session_pk, level):
             _set_ai_status(session_pk, LearningSession.AIStatus.USED, len(cards))
         else:
             _set_ai_status(session_pk, LearningSession.AIStatus.UNAVAILABLE)
-    except Exception:  # never let a background failure go unnoticed or break the app
+    except Exception:  # log any error; the session carries on
         log.exception("AI flashcard generation failed")
         _set_ai_status(session_pk, LearningSession.AIStatus.UNAVAILABLE)
     finally:
         _ai_busy.release()
         if settings.AI_FLASHCARDS_BACKGROUND:
-            connections.close_all()  # this thread's own database connection
+            connections.close_all()  # close this thread's database connection
 
 
 def _set_ai_status(session_pk, status, added=None):
@@ -101,7 +99,7 @@ def _pick_card(session):
         pool = list(Flashcard.objects.filter(is_active=True, difficulty=level))
     if not pool:
         raise SessionError(f"No flashcards available at level {level}.")
-    # Prefer fresh AI cards a little, so newly generated cards are actually seen
+    # Show new AI cards more often, so they get seen
     ai_cards = [c for c in pool if c.source == Flashcard.Source.AI]
     return random.choice(ai_cards if ai_cards and random.random() < 0.5 else pool)
 
@@ -152,7 +150,7 @@ def next_card(session):
 @transaction.atomic
 def answer(session, chosen_label, response_time_ms=None):
     """Record the learner's answer and apply the adaptive rule every 3 attempts."""
-    # Lock only the session row: PostgreSQL can't lock across the optional current_card join.
+    # Lock the session so two answers can't be saved at once
     session = LearningSession.objects.select_for_update().get(pk=session.pk)
     if session.is_finished:
         raise SessionError("This session has ended.")
